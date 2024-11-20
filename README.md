@@ -46,3 +46,44 @@ server.start(14831, (error, address) => {
     }
 });
 ```
+
+## MongoDB Configuration
+
+This fork of the labeler uses MongoDB instead of SQLite. To use it, you'll need:
+
+1. A MongoDB database (can be local or cloud-hosted)
+2. The MongoDB connection URI
+
+### Setup
+
+1. Install dependencies:
+```bash
+npm install
+```
+
+2. Configure the labeler with your MongoDB URI:
+```typescript
+import { LabelerServer } from '@skyware/labeler';
+
+const server = new LabelerServer({
+    did: 'your-did',
+    signingKey: 'your-signing-key',
+    mongoUri: 'mongodb://your-mongodb-uri'
+});
+
+await server.start(3000);
+```
+
+The MongoDB URI should be in the format: `mongodb://[username:password@]host[:port]/database`
+
+### Environment Variables
+
+It's recommended to use environment variables for sensitive information:
+
+```typescript
+const server = new LabelerServer({
+    did: process.env.LABELER_DID,
+    signingKey: process.env.LABELER_SIGNING_KEY,
+    mongoUri: process.env.MONGODB_URI
+});
+```

@@ -35,7 +35,7 @@ if (command === "setup" || command === "clear") {
 
 	if (command === "setup") {
 		try {
-			const { endpoint, privateKey } = await prompt([{
+			const { endpoint, privateKey, host, port } = await prompt([{
 				type: "text",
 				name: "endpoint",
 				message: "URL where the labeler will be hosted:",
@@ -51,6 +51,16 @@ if (command === "setup" || command === "clear") {
 					if (/^[A-Za-z0-9+/=]+$/.test(value)) return true;
 					return "Must be a hex or base64-encoded string.";
 				},
+			}, {
+				type: "text",
+				name: "host",
+				message: "Host address to listen on (leave empty for both ::1 and 127.0.0.1):",
+				initial: undefined
+			}, {
+				type: "number",
+				name: "port",
+				message: "Port to listen on (default: 4100):",
+				initial: 4100
 			}], { onCancel: () => process.exit(1) });
 
 			const operation = await plcSetupLabeler({

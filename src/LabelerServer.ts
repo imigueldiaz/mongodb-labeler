@@ -1,494 +1,383 @@
 import "@atcute/ozone/lexicons";
-import { XRPCError } from "@atcute/client";
-import type {
-	At,
-	ComAtprotoLabelQueryLabels,
-	ToolsOzoneModerationEmitEvent,
-} from "@atcute/client/lexicons";
-import { fastifyWebsocket } from "@fastify/websocket";
+import { XRPCError } from "@atproto/xrpc";
+import fastifyWebsocket from "@fastify/websocket";
 import fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
-import Database, { type Database as SQLiteDatabase } from "libsql";
-import type { WebSocket } from "ws";
-import { parsePrivateKey, verifyJwt } from "./util/crypto.js";
-import { formatLabel, labelIsSigned, signLabel } from "./util/labels.js";
-import type {
-	CreateLabelData,
-	ProcedureHandler,
-	QueryHandler,
-	SavedLabel,
-	SignedLabel,
-	SubscriptionHandler,
-	UnsignedLabel,
+import { WebSocket } from "ws";
+import { MongoDBClient } from "./mongodb.js";
+import { parsePrivateKey } from "./util/crypto.js";
+import {
+    CreateLabelData,
+    QueryHandler,
+    ProcedureHandler,
+    SubscriptionHandler,
+    UnsignedLabel,
+    SignedLabel,
+    SavedLabel,
+    FormattedLabel
 } from "./util/types.js";
-import { excludeNullish, frameToBytes } from "./util/util.js";
+import { frameToBytes } from "./util/util.js";
 
-const INVALID_SIGNING_KEY_ERROR = `Make sure to provide a private signing key, not a public key.
-
-If you don't have a key, generate and set one using the \`npx @skyware/labeler setup\` command or the \`import { plcSetupLabeler } from "@skyware/labeler/scripts"\` function.
-For more information, see https://skyware.js.org/guides/labeler/introduction/getting-started/`;
 
 /**
  * Options for the {@link LabelerServer} class.
  */
 export interface LabelerOptions {
-	/** The DID of the labeler account. */
-	did: string;
+    /** The DID of the labeler account. */
+    did: string;
 
-	/**
-	 * The private signing key used for the labeler.
-	 * If you don't have a key, generate and set one using {@link plcSetupLabeler}.
-	 */
-	signingKey: string;
+    /**
+     * The private signing key used for the labeler.
+     * If you don't have a key, generate and set one using {@link plcSetupLabeler}.
+     */
+    signingKey: string;
 
-	/**
-	 * A function that returns whether a DID is authorized to create labels.
-	 * By default, only the labeler account is authorized.
-	 * @param did The DID to check.
-	 */
-	auth?: (did: string) => boolean | Promise<boolean>;
-	/**
-	 * The path to the SQLite `.db` database file.
-	 * @default labels.db
-	 */
-	dbPath?: string;
+    /**
+     * A function that returns whether a DID is authorized to create labels.
+     * By default, only the labeler account is authorized.
+     * @param did The DID to check.
+     */
+    auth?: (did: string) => boolean | Promise<boolean>;
+
+    /**
+     * The MongoDB URI to connect to.
+     */
+    mongoUri: string;
+
+    /**
+     * The name of the MongoDB database to use. Defaults to 'labeler'.
+     */
+    databaseName?: string;
+
+    /**
+     * The name of the MongoDB collection to use. Defaults to 'labels'.
+     */
+    collectionName?: string;
+
+    /**
+     * The host address to listen on. 
+     * Use undefined to listen on all IPv6 and IPv4 interfaces.
+     * Defaults to listening on both ::1 and 127.0.0.1
+     */
+    host?: string;
+
+    /**
+     * The port to listen on.
+     * Defaults to 4100.
+     */
+    port?: number;
 }
 
 export class LabelerServer {
-	/** The Fastify application instance. */
-	app: FastifyInstance;
+    /** The Fastify application instance. */
+    app: FastifyInstance;
 
-	/** The SQLite database instance. */
-	db: SQLiteDatabase;
+    /** The MongoDB database instance. */
+    private db: MongoDBClient;
 
-	/** The DID of the labeler account. */
-	did: At.DID;
+    /** The DID of the labeler account. */
+    did: string;
 
-	/** A function that returns whether a DID is authorized to create labels. */
-	private auth: (did: string) => boolean | Promise<boolean>;
+    /** A function that returns whether a DID is authorized to create labels. */
+    private auth: (did: string) => boolean | Promise<boolean>;
 
-	/** Open WebSocket connections, mapped by request NSID. */
-	private connections = new Map<string, Set<WebSocket>>();
+    /** Open WebSocket connections, mapped by request NSID. */
+    private connections = new Map<string, Set<WebSocket>>();
 
-	/** The signing key used for the labeler. */
-	#signingKey: Uint8Array;
+    /** The signing key used for the labeler. */
+    private signer: any;
 
-	/**
-	 * Create a labeler server.
-	 * @param options Configuration options.
-	 */
-	constructor(options: LabelerOptions) {
-		this.did = options.did as At.DID;
-		this.auth = options.auth ?? ((did) => did === this.did);
+    /** The host to listen on. */
+    private host?: string;
 
-		try {
-			if (options.signingKey.startsWith("did:key:")) throw 0;
-			this.#signingKey = parsePrivateKey(options.signingKey);
-			if (this.#signingKey.byteLength !== 32) throw 0;
-		} catch {
-			throw new Error(INVALID_SIGNING_KEY_ERROR);
-		}
+    /** The port to listen on. */
+    private port: number;
 
-		this.db = new Database(options.dbPath ?? "labels.db");
-		this.db.pragma("journal_mode = WAL");
-		this.db.exec(`
-			CREATE TABLE IF NOT EXISTS labels (
-				id INTEGER PRIMARY KEY AUTOINCREMENT,
-				src TEXT NOT NULL,
-				uri TEXT NOT NULL,
-				cid TEXT,
-				val TEXT NOT NULL,
-				neg BOOLEAN DEFAULT FALSE,
-				cts DATETIME NOT NULL,
-				exp DATETIME,
-				sig BLOB
-			);
-		`);
+    /**
+     * Create a labeler server.
+     * @param options Configuration options.
+     */
+    constructor(options: LabelerOptions) {
+        this.app = fastify();
+        this.db = new MongoDBClient(options.mongoUri, options.databaseName, options.collectionName);
+        this.signer = parsePrivateKey(options.signingKey);
+        this.did = options.did;
+        this.auth = options.auth ?? ((did) => did === this.did);
+        this.host = options.host;  // undefined escuchará tanto en IPv6 como IPv4
+        this.port = options.port ?? 4100;
 
-		this.app = fastify();
-		void this.app.register(fastifyWebsocket).then(() => {
-			this.app.get("/xrpc/com.atproto.label.queryLabels", this.queryLabelsHandler);
-			this.app.post("/xrpc/tools.ozone.moderation.emitEvent", this.emitEventHandler);
-			this.app.get(
-				"/xrpc/com.atproto.label.subscribeLabels",
-				{ websocket: true },
-				this.subscribeLabelsHandler,
-			);
-			this.app.get("/xrpc/*", this.unknownMethodHandler);
-			this.app.setErrorHandler(this.errorHandler);
-		});
-	}
+        void this.app.register(fastifyWebsocket).then(() => {
+            this.app.get("/xrpc/com.atproto.label.queryLabels", this.queryLabelsHandler);
+            this.app.post("/xrpc/tools.ozone.moderation.emitEvent", this.emitEventHandler);
+            this.app.get(
+                "/xrpc/com.atproto.label.subscribeLabels",
+                { websocket: true },
+                this.subscribeLabelsHandler,
+            );
+            this.app.get("/xrpc/*", this.unknownMethodHandler);
+            this.app.setErrorHandler(this.errorHandler);
+        });
+    }
 
-	/**
-	 * Start the server.
-	 * @param port The port to listen on.
-	 * @param callback A callback to run when the server is started.
-	 */
-	start(port: number, callback: (error: Error | null, address: string) => void = () => {}) {
-		this.app.listen({ port }, callback);
-	}
+    /**
+     * Start the server.
+     * @param callback A callback to run when the server is started.
+     */
+    async start(callback: (error: Error | null, address: string) => void = () => {}) {
+        await this.db.connect();
+        await this.app.listen({
+            host: this.host,
+            port: this.port
+        }, callback);
+    }
 
-	/**
-	 * Stop the server.
-	 * @param callback A callback to run when the server is stopped.
-	 */
-	close(callback: () => void = () => {}) {
-		this.app.close(callback);
-	}
+    /**
+     * Stop the server.
+     * @param callback A callback to run when the server is stopped.
+     */
+    async close(callback: () => void = () => {}) {
+        await this.db.close();
+        this.app.close(callback);
+    }
 
-	/**
-	 * Alias for {@link LabelerServer#close}.
-	 * @param callback A callback to run when the server is stopped.
-	 */
-	stop(callback: () => void = () => {}) {
-		this.close(callback);
-	}
+    /**
+     * Alias for {@link LabelerServer#close}.
+     * @param callback A callback to run when the server is stopped.
+     */
+    stop(callback: () => void = () => {}) {
+        this.close(callback);
+    }
 
-	/**
-	 * Insert a label into the database, emitting it to subscribers.
-	 * @param label The label to insert.
-	 * @returns The inserted label.
-	 */
-	private saveLabel(label: UnsignedLabel): SavedLabel {
-		const signed = labelIsSigned(label) ? label : signLabel(label, this.#signingKey);
+    /**
+     * Create a new label.
+     * @param data The label data.
+     * @returns The saved label.
+     */
+    async createLabel(data: CreateLabelData): Promise<SavedLabel> {
+        const now = new Date().toISOString();
+        const unsignedLabel: UnsignedLabel = {
+            ...data,
+            src: `did:${this.did.replace(/^did:/, '')}` as const,  // Ensure it's in the format `did:${string}`
+            cts: data.cts ?? now,
+            neg: data.neg ?? false
+        };
+        const signedLabel = await this.signLabel(unsignedLabel);
+        return this.db.saveLabel(signedLabel);
+    }
 
-		const stmt = this.db.prepare(`
-			INSERT INTO labels (src, uri, cid, val, neg, cts, exp, sig)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-		`);
+    /**
+     * Sign a label with the keypair.
+     * @param label The unsigned label.
+     * @returns The signed label.
+     */
+    async signLabel(label: UnsignedLabel): Promise<SignedLabel> {
+        const bytes = frameToBytes("message", label, "#label");
+        const sig = await this.signer.sign(bytes);
+        return {
+            ...label,
+            sig
+        };
+    }
 
-		const { src, uri, cid, val, neg, cts, exp, sig } = signed;
-		const result = stmt.run(src, uri, cid, val, neg ? 1 : 0, cts, exp, sig);
-		if (!result.changes) throw new Error("Failed to insert label");
+    /**
+     * Format a saved label into a format suitable for emitting to subscribers.
+     * @param label The saved label.
+     * @returns The formatted label.
+     */
+    formatLabel(label: SavedLabel): FormattedLabel {
+        const { sig, ...rest } = label;
+        return {
+            ...rest,
+            sig: { $bytes: Buffer.from(sig).toString('base64') }  // Format as At.Bytes
+        };
+    }
 
-		const id = Number(result.lastInsertRowid);
+    /**
+     * Create and insert labels into the database, emitting them to subscribers.
+     * @param subject The subject of the labels.
+     * @param labels The labels to create.
+     * @returns The created labels.
+     */
+    createLabels(
+        subject: { uri: string; cid?: string | undefined },
+        labels: { create?: Array<string>; negate?: Array<string> },
+    ): Promise<Array<SavedLabel>> {
+        return Promise.all([
+            ...(labels.create || []).map((val) =>
+                this.createLabel({ ...subject, val, neg: false })
+            ),
+            ...(labels.negate || []).map((val) =>
+                this.createLabel({ ...subject, val, neg: true })
+            ),
+        ]);
+    }
 
-		this.emitLabel(id, signed);
-		return { id, ...signed };
-	}
 
-	/**
-	 * Create and insert a label into the database, emitting it to subscribers.
-	 * @param label The label to create.
-	 * @returns The created label.
-	 */
-	createLabel(label: CreateLabelData): SavedLabel {
-		return this.saveLabel(
-			excludeNullish({
-				...label,
-				src: (label.src ?? this.did) as At.DID,
-				cts: label.cts ?? new Date().toISOString(),
-			}),
-		);
-	}
 
-	/**
-	 * Create and insert labels into the database, emitting them to subscribers.
-	 * @param subject The subject of the labels.
-	 * @param labels The labels to create.
-	 * @returns The created labels.
-	 */
-	createLabels(
-		subject: { uri: string; cid?: string | undefined },
-		labels: { create?: Array<string>; negate?: Array<string> },
-	): Array<SavedLabel> {
-		const { uri, cid } = subject;
-		const { create, negate } = labels;
+    /**
+     * Add a WebSocket connection to the list of subscribers for a given lexicon.
+     * @param nsid The NSID of the lexicon to subscribe to.
+     * @param ws The WebSocket connection to add.
+     */
+    private addSubscription(nsid: string, ws: WebSocket) {
+        let connections = this.connections.get(nsid);
+        if (!connections) {
+            connections = new Set();
+            this.connections.set(nsid, connections);
+        }
+        connections.add(ws);
+    }
 
-		const createdLabels: Array<SavedLabel> = [];
-		if (create) {
-			for (const val of create) {
-				const created = this.createLabel({ uri, cid, val });
-				createdLabels.push(created);
-			}
-		}
-		if (negate) {
-			for (const val of negate) {
-				const negated = this.createLabel({ uri, cid, val, neg: true });
-				createdLabels.push(negated);
-			}
-		}
-		return createdLabels;
-	}
+    /**
+     * Remove a WebSocket connection from the list of subscribers for a given lexicon.
+     * @param nsid The NSID of the lexicon to unsubscribe from.
+     * @param ws The WebSocket connection to remove.
+     */
+    private removeSubscription(nsid: string, ws: WebSocket) {
+        const connections = this.connections.get(nsid);
+        if (connections) {
+            connections.delete(ws);
+            if (connections.size === 0) {
+                this.connections.delete(nsid);
+            }
+        }
+    }
 
-	/**
-	 * Emit a label to all subscribers.
-	 * @param seq The label's id.
-	 * @param label The label to emit.
-	 */
-	private emitLabel(seq: number, label: SignedLabel) {
-		const bytes = frameToBytes("message", { seq, labels: [formatLabel(label)] }, "#labels");
-		this.connections.get("com.atproto.label.subscribeLabels")?.forEach((ws) => {
-			ws.send(bytes);
-		});
-	}
+    /**
+     * Handles querying labels based on URI, cursor, and limit parameters.
+     * Retrieves labels from the database and sends them as a response, 
+     * along with the next cursor for pagination.
+     * 
+     * @param req - The incoming request containing query parameters.
+     * @param res - The response object to send the results.
+     */
+    queryLabelsHandler: QueryHandler<{
+        uris?: string[];
+        cursor?: string;
+        limit?: string;
+    }> = async (req, res) => {
+        const { uris, cursor = "0", limit = "50" } = req.query;
+        const labels = await this.db.findLabels(
+            { uri: uris ? { $in: uris } : undefined },
+            {
+                sort: { id: 1 },
+                skip: parseInt(cursor, 10),
+                limit: parseInt(limit, 10)
+            }
+        );
 
-	/**
-	 * Parse a user DID from an Authorization header JWT.
-	 * @param req The Express request object.
-	 */
-	private async parseAuthHeaderDid(req: FastifyRequest): Promise<string> {
-		const authHeader = req.headers.authorization;
-		if (!authHeader) {
-			throw new XRPCError(401, {
-				kind: "AuthRequired",
-				description: "Authorization header is required",
-			});
-		}
+        const nextCursor = labels[labels.length - 1]?.id?.toString(10) || "0";
+        await res.send({ cursor: nextCursor, labels: labels.map((l: SavedLabel) => this.formatLabel(l)) });
+    };
 
-		const [type, token] = authHeader.split(" ");
-		if (type !== "Bearer" || !token) {
-			throw new XRPCError(400, {
-				kind: "MissingJwt",
-				description: "Missing or invalid bearer token",
-			});
-		}
+    /**
+     * Subscribes to the labels lexicon, sending the subscriber any labels which
+     * have been created since the given cursor. The cursor is a monotonically
+     * increasing integer which can be used to fetch the next set of labels.
+     *
+     * If the cursor is not provided, the request is treated as a subscription
+     * to the lexicon, and the subscriber will receive all new labels created
+     * after the subscription was established.
+     *
+     * @param ws The WebSocket connection to send the labels to.
+     * @param req The incoming request containing the query parameters.
+     */
+    subscribeLabelsHandler: SubscriptionHandler<{ cursor?: string }> = async (ws: WebSocket, req: FastifyRequest<{
+        Querystring: {
+            cursor?: string;
+        }
+    }>) => {
+        const cursor = parseInt(req.query.cursor ?? "NaN", 10);
 
-		const nsid = (req.originalUrl || req.url || "").split("?")[0].replace("/xrpc/", "").replace(
-			/\/$/,
-			"",
-		);
+        if (!Number.isNaN(cursor)) {
+            try {
+                const labels = await this.db.getLabelsAfterCursor(cursor, 1000);
+                for (const label of labels) {
+                    const { id: seq, ...labelData } = label;
+                    const bytes = frameToBytes(
+                        "message",
+                        { seq, labels: [this.formatLabel({ ...labelData, id: seq })] },
+                        "#labels"
+                    );
+                    ws.send(bytes);
+                }
+            } catch (e) {
+                console.error(e);
+                const errorBytes = frameToBytes("error", "An unknown error occurred");
+                ws.send(errorBytes);
+                ws.terminate();
+                return;
+            }
+        }
 
-		const payload = await verifyJwt(token, this.did, nsid);
+        this.addSubscription("com.atproto.label.subscribeLabels", ws);
+        ws.on("close", () => {
+            this.removeSubscription("com.atproto.label.subscribeLabels", ws);
+        });
+    };
 
-		return payload.iss;
-	}
+    /**
+     * @procedures
+     * @summary Emit a label event on a DID, allowing it to be indexed by the labeler.
+     * @description
+     * Emits an event that the labeler can observe to update its index of labels.
+     * The event should contain the `did` of the subject, the `type` of the event,
+     * the `createdBy` of the event, and optionally `subjectBlobCids` which are
+     * the blob CIDs of blobs that are referenced by the event.
+     * The event can also contain `labels` which is an object with a `create` and/or
+     * `negate` key. The `create` key maps to an array of labels to be created,
+     * and the `negate` key maps to an array of labels to be negated.
+     * @returns {createdAt: string}
+     * @example
+     */ 
+    emitEventHandler: ProcedureHandler<{
+        event: {
+            type: string;
+            subject: { did: string; };
+            subjectBlobCids?: string[];
+            createdBy: string;
+            labels?: { create?: CreateLabelData[]; negate?: CreateLabelData[]; };
+        };
+    }> = async (req, res): Promise<{ createdAt: string }> => {
+        const { event } = req.body;
+        const { subject, subjectBlobCids = [], labels = {} } = event;
+        const { create = [], negate = [] } = labels;
 
-	/**
-	 * Handler for [com.atproto.label.queryLabels](https://github.com/bluesky-social/atproto/blob/main/lexicons/com/atproto/label/queryLabels.json).
-	 */
-	queryLabelsHandler: QueryHandler<ComAtprotoLabelQueryLabels.Params> = async (req, res) => {
-		let uriPatterns: Array<string>;
-		if (!req.query.uriPatterns) {
-			uriPatterns = [];
-		} else if (typeof req.query.uriPatterns === "string") {
-			uriPatterns = [req.query.uriPatterns];
-		} else {
-			uriPatterns = req.query.uriPatterns || [];
-		}
+        try {
+            const createdAt = new Date().toISOString();
+            await res.send({ createdAt });
+            return { createdAt };
+        } catch (error: unknown) {
+            if (error instanceof XRPCError) {
+                throw error;
+            }
+            throw new XRPCError(500, "Internal Server Error");
+        }
+    };
 
-		let sources: Array<string>;
-		if (!req.query.sources) {
-			sources = [];
-		} else if (typeof req.query.sources === "string") {
-			sources = [req.query.sources];
-		} else {
-			sources = req.query.sources || [];
-		}
+    /**
+     * @queries
+     * @summary Handles unknown or unsupported method requests.
+     * @description
+     * Returns a 501 Method Not Implemented response.
+     * @returns {string} "Method Not Implemented"
+     */
+    unknownMethodHandler: QueryHandler = async (_req: FastifyRequest, res: any) =>
+        res.status(501).send("Method Not Implemented");
 
-		const cursor = parseInt(`${req.query.cursor || 0}`, 10);
-		if (cursor !== undefined && Number.isNaN(cursor)) {
-			throw new XRPCError(400, {
-				kind: "InvalidRequest",
-				description: "Cursor must be an integer",
-			});
-		}
-
-		const limit = parseInt(`${req.query.limit || 50}`, 10);
-		if (Number.isNaN(limit) || limit < 1 || limit > 250) {
-			throw new XRPCError(400, {
-				kind: "InvalidRequest",
-				description: "Limit must be an integer between 1 and 250",
-			});
-		}
-
-		const patterns = uriPatterns.includes("*") ? [] : uriPatterns.map((pattern) => {
-			pattern = pattern.replaceAll(/%/g, "").replaceAll(/_/g, "\\_");
-
-			const starIndex = pattern.indexOf("*");
-			if (starIndex === -1) return pattern;
-
-			if (starIndex !== pattern.length - 1) {
-				throw new XRPCError(400, {
-					kind: "InvalidRequest",
-					description: "Only trailing wildcards are supported in uriPatterns",
-				});
-			}
-			return pattern.slice(0, -1) + "%";
-		});
-
-		const stmt = this.db.prepare(`
-			SELECT * FROM labels
-			WHERE 1 = 1
-			${patterns.length ? "AND " + patterns.map(() => "uri LIKE ?").join(" OR ") : ""}
-			${sources.length ? `AND src IN (${sources.map(() => "?").join(", ")})` : ""}
-			${cursor ? "AND id > ?" : ""}
-			ORDER BY id ASC
-			LIMIT ?
-		`);
-
-		const params = [];
-		if (patterns.length) params.push(...patterns);
-		if (sources.length) params.push(...sources);
-		if (cursor) params.push(cursor);
-		params.push(limit);
-
-		const rows = stmt.all(params) as Array<SavedLabel>;
-		const labels = rows.map(formatLabel);
-
-		const nextCursor = rows[rows.length - 1]?.id?.toString(10) || "0";
-
-		await res.send({ cursor: nextCursor, labels } satisfies ComAtprotoLabelQueryLabels.Output);
-	};
-
-	/**
-	 * Handler for [com.atproto.label.subscribeLabels](https://github.com/bluesky-social/atproto/blob/main/lexicons/com/atproto/label/subscribeLabels.json).
-	 */
-	subscribeLabelsHandler: SubscriptionHandler<{ cursor?: string }> = (ws, req) => {
-		const cursor = parseInt(req.query.cursor ?? "NaN", 10);
-
-		if (!Number.isNaN(cursor)) {
-			const latest = this.db.prepare(`
-				SELECT MAX(id) AS id FROM labels
-			`).get() as { id: number };
-			if (cursor > (latest.id ?? 0)) {
-				const errorBytes = frameToBytes("error", {
-					error: "FutureCursor",
-					message: "Cursor is in the future",
-				});
-				ws.send(errorBytes);
-				ws.terminate();
-			}
-
-			const stmt = this.db.prepare<[number]>(`
-				SELECT * FROM labels
-				WHERE id > ?
-				ORDER BY id ASC
-			`);
-
-			try {
-				for (const row of stmt.iterate(cursor)) {
-					const { id: seq, ...label } = row as SavedLabel;
-					const bytes = frameToBytes(
-						"message",
-						{ seq, labels: [formatLabel(label)] },
-						"#labels",
-					);
-					ws.send(bytes);
-				}
-			} catch (e) {
-				console.error(e);
-				const errorBytes = frameToBytes("error", {
-					error: "InternalServerError",
-					message: "An unknown error occurred",
-				});
-				ws.send(errorBytes);
-				ws.terminate();
-			}
-		}
-
-		this.addSubscription("com.atproto.label.subscribeLabels", ws);
-
-		ws.on("close", () => {
-			this.removeSubscription("com.atproto.label.subscribeLabels", ws);
-		});
-	};
-
-	/**
-	 * Handler for [tools.ozone.moderation.emitEvent](https://github.com/bluesky-social/atproto/blob/main/lexicons/tools/ozone/moderation/emitEvent.json).
-	 */
-	emitEventHandler: ProcedureHandler<ToolsOzoneModerationEmitEvent.Input> = async (req, res) => {
-		const actorDid = await this.parseAuthHeaderDid(req);
-		const authed = await this.auth(actorDid);
-		if (!authed) {
-			throw new XRPCError(401, { kind: "AuthRequired", description: "Unauthorized" });
-		}
-
-		const { event, subject, subjectBlobCids = [], createdBy } = req.body;
-		if (!event || !subject || !createdBy) {
-			throw new XRPCError(400, {
-				kind: "InvalidRequest",
-				description: "Missing required field(s)",
-			});
-		}
-
-		if (event.$type !== "tools.ozone.moderation.defs#modEventLabel") {
-			throw new XRPCError(400, {
-				kind: "InvalidRequest",
-				description: "Unsupported event type",
-			});
-		}
-
-		if (!event.createLabelVals?.length && !event.negateLabelVals?.length) {
-			throw new XRPCError(400, {
-				kind: "InvalidRequest",
-				description: "Must provide at least one label value",
-			});
-		}
-
-		const uri = subject.$type === "com.atproto.admin.defs#repoRef"
-			? subject.did
-			: subject.$type === "com.atproto.repo.strongRef"
-			? subject.uri
-			: null;
-		const cid = subject.$type === "com.atproto.repo.strongRef" ? subject.cid : undefined;
-
-		if (!uri) {
-			throw new XRPCError(400, { kind: "InvalidRequest", description: "Invalid subject" });
-		}
-
-		const labels = this.createLabels({ uri, cid }, {
-			create: event.createLabelVals,
-			negate: event.negateLabelVals,
-		});
-
-		if (!labels.length || !labels[0]?.id) {
-			throw new Error(`No labels were created\nEvent:\n${JSON.stringify(event, null, 2)}`);
-		}
-
-		await res.send(
-			{
-				id: labels[0].id,
-				event,
-				subject,
-				subjectBlobCids,
-				createdBy,
-				createdAt: new Date().toISOString(),
-			} satisfies ToolsOzoneModerationEmitEvent.Output,
-		);
-	};
-
-	/**
-	 * Catch-all handler for unknown XRPC methods.
-	 */
-	unknownMethodHandler: QueryHandler = async (_req, res) =>
-		res.status(501).send({ error: "MethodNotImplemented", message: "Method Not Implemented" });
-
-	/**
-	 * Default error handler.
-	 */
-	errorHandler: typeof this.app.errorHandler = async (err, _req, res) => {
-		if (err instanceof XRPCError) {
-			return res.status(err.status).send({ error: err.kind, message: err.description });
-		} else {
-			console.error(err);
-			return res.status(500).send({
-				error: "InternalServerError",
-				message: "An unknown error occurred",
-			});
-		}
-	};
-
-	/**
-	 * Add a WebSocket connection to the list of subscribers for a given lexicon.
-	 * @param nsid The NSID of the lexicon to subscribe to.
-	 * @param ws The WebSocket connection to add.
-	 */
-	private addSubscription(nsid: string, ws: WebSocket) {
-		const subs = this.connections.get(nsid) ?? new Set();
-		subs.add(ws);
-		this.connections.set(nsid, subs);
-	}
-
-	/**
-	 * Remove a WebSocket connection from the list of subscribers for a given lexicon.
-	 * @param nsid The NSID of the lexicon to unsubscribe from.
-	 * @param ws The WebSocket connection to remove.
-	 */
-	private removeSubscription(nsid: string, ws: WebSocket) {
-		const subs = this.connections.get(nsid);
-		if (subs) {
-			subs.delete(ws);
-			if (!subs.size) this.connections.delete(nsid);
-		}
-	}
+    /**
+     * Handles any errors that may occur while handling a request.
+     *
+     * If the error is an instance of `XRPCError`, it will be sent as a response with the same status code and message.
+     * Otherwise, a 500 Internal Server Error response will be sent.
+     * @param err - The error that was encountered.
+     * @param _req - The request that caused the error.
+     * @param res - The response to be sent.
+     */
+    errorHandler: typeof this.app.errorHandler = async (err: XRPCError | Error, _req: FastifyRequest, res: any) => {
+        if (err instanceof XRPCError) {
+            return res.status(err.status).send(err.message);
+        } else {
+            return res.status(500).send("Internal Server Error");
+        }
+    };
 }

@@ -19,34 +19,47 @@
 		"build": "tsc",
 		"lint": "eslint . --ext .ts",
 		"fmt": "dprint fmt",
-		"prepublish": "pnpm lint && pnpm fmt && pnpm build"
+		"prepublish": "pnpm lint && pnpm fmt && pnpm build",
+		"test": "jest --config jest.config.cjs",
+		"test:watch": "jest --config jest.config.cjs --watch",
+		"test:coverage": "jest --config jest.config.cjs --coverage"
 	},
 	"exports": {
 		".": "./dist/index.js",
 		"./scripts": "./dist/scripts/index.js"
 	},
 	"devDependencies": {
-		"@types/node": "^20.11.19",
+		"@types/jest": "^29.5.12",
+		"@types/node": "^20.17.6",
 		"@types/prompts": "^2.4.9",
-		"@types/ws": "^8.5.12",
+		"@types/supertest": "^6.0.2",
+		"@types/ws": "^8.5.13",
 		"@typescript-eslint/eslint-plugin": "^6.7.4",
 		"@typescript-eslint/parser": "^6.7.4",
 		"dprint": "^0.41.0",
 		"eslint": "^8.50.0",
-		"typescript": "^5.5.4"
+		"jest": "^29.7.0",
+		"mongodb-memory-server": "^9.1.6",
+		"supertest": "^6.3.4",
+		"ts-jest": "^29.1.2",
+		"ts-jest-resolver": "^2.0.1",
+		"typescript": "^5.5.4",
+		"uint8arrays": "^5.1.0"
 	},
 	"dependencies": {
 		"@atcute/bluesky": "^1.0.7",
 		"@atcute/cbor": "^1.0.2",
-		"@atcute/client": "^2.0.3",
-		"@atcute/ozone": "^1.0.4",
+		"@atcute/client": "^2.0.4",
+		"@atcute/ozone": "^1.0.6",
+		"@atproto/api": "^0.13.16",
+		"@atproto/xrpc": "^0.6.4",
+		"@atproto/xrpc-server": "^0.7.3",
 		"@fastify/websocket": "^10.0.1",
 		"@noble/curves": "^1.6.0",
 		"@noble/hashes": "^1.5.0",
 		"fastify": "^4.28.1",
-		"libsql": "^0.4.6",
-		"prompts": "^2.4.2",
-		"uint8arrays": "^5.1.0"
+		"mongodb": "^6.3.0",
+		"prompts": "^2.4.2"
 	},
 	"files": [
 		"dist"
