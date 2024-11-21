@@ -2,10 +2,7 @@
 jest.mock('@atcute/ozone/lexicons');
 jest.mock('../mongodb');
 
-import { MongoMemoryServer } from 'mongodb-memory-server';
-import request from 'supertest';
-import { LabelerServer } from '../LabelerServer.js';
-import { MongoDBClient } from '../mongodb.js';
+import { LabelerServer } from '../LabelerServer';
 import { FastifyInstance } from 'fastify';
 
 describe('LabelerServer', () => {
@@ -78,8 +75,8 @@ describe('LabelerServer', () => {
   describe('createLabel', () => {
     it('should create and save a label', async () => {
       const labelData = {
-        src: 'did:example:test',
         uri: 'at://did:example:test/app.bsky.feed.post/test',
+        src: 'did:example:test',
         val: 'test-label',
         neg: false,
       };
@@ -88,7 +85,7 @@ describe('LabelerServer', () => {
 
       expect(savedLabel).toMatchObject({
         ...labelData,
-        sig: expect.any(String),
+        sig: expect.any(Uint8Array),
         id: expect.any(Number),
       });
     });

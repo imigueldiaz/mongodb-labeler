@@ -1,42 +1,44 @@
+import type { CreateLabelData, SavedLabel } from "../util/types.js";
+
 export class MongoDBClient {
-  private labels: any[] = [];
-  private counter = 0;
-  private uri: string;
-  private databaseName: string;
-  private collectionName: string;
+  private labels: SavedLabel[] = [];
+  private nextId = 1;
 
-  constructor(uri: string, databaseName: string = 'labeler', collectionName: string = 'labels') {
-    this.uri = uri;
-    this.databaseName = databaseName;
-    this.collectionName = collectionName;
-  }
+  constructor(
+    private mongoUri: string,
+    private databaseName?: string,
+    private collectionName?: string
+  ) {}
 
-  async findLabels(query: any = {}, options: any = {}) {
-    const { skip = 0, limit = 50 } = options;
+  // eslint-disable-next-line @typescript-eslint/require-await
+  async findLabels(_query: any, options?: { sort?: any; skip?: number; limit?: number }): Promise<SavedLabel[]> {
+    const { skip = 0, limit = 50 } = options ?? {};
     return this.labels.slice(skip, skip + limit);
   }
 
-  async saveLabel(label: any) {
-    const id = ++this.counter;
-    const savedLabel = { 
+  // eslint-disable-next-line @typescript-eslint/require-await
+  async saveLabel(label: CreateLabelData): Promise<SavedLabel> {
+    const savedLabel = {
       ...label,
-      id,
-      sig: Buffer.from(label.sig).toString('base64')  // Convert signature to base64 string
+      id: this.nextId++,
+      sig: new Uint8Array(64)
     };
     this.labels.push(savedLabel);
-    return { ...savedLabel }; // Return a copy of the saved label
+    return savedLabel;
   }
 
-  async getLabelsAfterCursor(cursor: number, limit: number) {
+  // eslint-disable-next-line @typescript-eslint/require-await
+  async getLabelsAfterCursor(cursor: number, limit: number): Promise<SavedLabel[]> {
     return this.labels.filter(l => l.id > cursor).slice(0, limit);
   }
 
-  async connect() {
+  // eslint-disable-next-line @typescript-eslint/require-await
+  async connect(): Promise<void> {
     // Mock implementation
-    return this;
   }
 
-  async close() {
+  // eslint-disable-next-line @typescript-eslint/require-await
+  async close(): Promise<void> {
     // Mock implementation
   }
 }

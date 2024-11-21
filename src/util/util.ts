@@ -1,5 +1,4 @@
 import { cborEncode } from '@atproto/common';
-import { concat as ui8Concat } from "uint8arrays";
 import { NonNullishPartial } from "./types.js";
 
 export function excludeNullish<T extends Record<PropertyKey, unknown>>(

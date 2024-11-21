@@ -1,4 +1,4 @@
-import { MongoClient, Collection, Db } from 'mongodb';
+import { MongoClient, Collection, Db, Filter, FindOptions } from 'mongodb';
 import type { SavedLabel, UnsignedLabel } from './util/types.js';
 
     /**
@@ -97,7 +97,7 @@ export class MongoDBClient {
      * @param options - Optional settings for the query, such as sort and limit.
      * @returns A promise that resolves to an array of labels matching the query.
      */
-    async findLabels(query: any, options: any = {}) {
+    async findLabels(query: Filter<SavedLabel>, options: FindOptions<SavedLabel> = {}) {
         return this.labels.find(query, options).toArray();
     }
 

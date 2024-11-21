@@ -102,7 +102,7 @@ export class LabelerServer {
         this.signer = parsePrivateKey(options.signingKey);
         this.did = options.did;
         this.auth = options.auth ?? ((did) => did === this.did);
-        this.host = options.host;  // undefined escuchará tanto en IPv6 como IPv4
+        this.host = options.host;  
         this.port = options.port ?? 4100;
 
         void this.app.register(fastifyWebsocket).then(() => {
@@ -124,7 +124,7 @@ export class LabelerServer {
      */
     async start(callback: (error: Error | null, address: string) => void = () => {}) {
         await this.db.connect();
-        await this.app.listen({
+        void this.app.listen({
             host: this.host,
             port: this.port
         }, callback);
@@ -156,7 +156,7 @@ export class LabelerServer {
         const now = new Date().toISOString();
         const unsignedLabel: UnsignedLabel = {
             ...data,
-            src: `did:${this.did.replace(/^did:/, '')}` as const,  // Ensure it's in the format `did:${string}`
+            src: `did:${this.did.replace(/^did:/, '')}` as const,  
             cts: data.cts ?? now,
             neg: data.neg ?? false
         };
@@ -187,7 +187,7 @@ export class LabelerServer {
         const { sig, ...rest } = label;
         return {
             ...rest,
-            sig: { $bytes: Buffer.from(sig).toString('base64') }  // Format as At.Bytes
+            sig: { $bytes: Buffer.from(sig).toString('base64') }  
         };
     }
 
@@ -340,7 +340,7 @@ export class LabelerServer {
     }> = async (req, res): Promise<{ createdAt: string }> => {
         const { event } = req.body;
         const { labels = {} } = event;
-        const { create = [], negate = [] } = labels;
+        const { create: _create = [], negate: _negate = [] } = labels;
 
         try {
             // TODO: Implement label creation and negation

@@ -52,10 +52,13 @@
 		"uint8arrays": "^5.1.0"
 	},
 	"dependencies": {
-		"@atproto/api": "^0.9.6",
+		"@atproto/api": "^0.9.8",
 		"@atproto/common": "^0.4.4",
+		"@atproto/identity": "^0.4.3",
 		"@atproto/xrpc": "^0.4.3",
 		"@fastify/websocket": "^8.3.1",
+		"@noble/curves": "^1.6.0",
+		"@noble/hashes": "^1.5.0",
 		"fastify": "^4.26.1",
 		"mongodb": "^6.3.0",
 		"ws": "^8.16.0"

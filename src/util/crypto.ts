@@ -1,5 +1,5 @@
-import { XRPCError } from "@atcute/client";
-import type { DidDocument } from "@atcute/client/utils/did";
+import { XRPCError } from "@atproto/xrpc";
+import type { DidDocument } from "@atproto/identity";
 import { p256 } from "@noble/curves/p256";
 import { secp256k1 as k256 } from "@noble/curves/secp256k1";
 import { sha256 } from "@noble/hashes/sha256";
@@ -25,43 +25,43 @@ const didToSigningKeyCache = new Map<string, { key: string; expires: number }>()
  * @returns The resolved signing key.
  */
 export async function resolveDidToSigningKey(did: string, forceRefresh?: boolean): Promise<string> {
-	if (!forceRefresh) {
-		const cached = didToSigningKeyCache.get(did);
-		if (cached) {
-			const now = Date.now();
-			if (now < cached.expires) {
-				return cached.key;
-			}
-			didToSigningKeyCache.delete(did);
-		}
-	}
+  if (!forceRefresh) {
+    const cached = didToSigningKeyCache.get(did);
+    if (cached) {
+      const now = Date.now();
+      if (now < cached.expires) {
+        return cached.key;
+      }
+      didToSigningKeyCache.delete(did);
+    }
+  }
 
-	const [, didMethod, ...didValueParts] = did.split(":");
+  const [, didMethod, ...didValueParts] = did.split(":");
 
-	let didKey: string | undefined = undefined;
-	if (didMethod === "plc") {
-		const res = await fetch(`https:/plc.directory/${encodeURIComponent(did)}`, {
-			headers: { accept: "application/json" },
-		});
-		if (!res.ok) throw new Error(`Could not resolve DID: ${did}`);
+  let didKey: string | undefined = undefined;
+  if (didMethod === "plc") {
+    const res = await fetch(`https://plc.directory/${encodeURIComponent(did)}`, {
+      headers: { accept: "application/json" },
+    });
+    if (!res.ok) throw new Error(`Could not resolve DID: ${did}`);
 
-		didKey = parseKeyFromDidDocument(await res.json() as never, did);
-	} else if (didMethod === "web") {
-		if (!didValueParts.length) throw new Error(`Poorly formatted DID: ${did}`);
-		if (didValueParts.length > 1) throw new Error(`Unsupported did:web paths: ${did}`);
-		const didValue = didValueParts[0];
+    didKey = parseKeyFromDidDocument(await res.json() as never, did);
+  } else if (didMethod === "web") {
+    if (!didValueParts.length) throw new Error(`Poorly formatted DID: ${did}`);
+    if (didValueParts.length > 1) throw new Error(`Unsupported did:web paths: ${did}`);
+    const didValue = didValueParts[0];
 
-		const res = await fetch(`https://${didValue}/.well-known/did.json`, {
-			headers: { accept: "application/json" },
-		});
-		if (!res.ok) throw new Error(`Could not resolve DID: ${did}`);
+    const res = await fetch(`https://${didValue}/.well-known/did.json`, {
+      headers: { accept: "application/json" },
+    });
+    if (!res.ok) throw new Error(`Could not resolve DID: ${did}`);
 
-		didKey = parseKeyFromDidDocument(await res.json() as never, did);
-	}
+    didKey = parseKeyFromDidDocument(await res.json() as never, did);
+  }
 
-	if (!didKey) throw new Error(`Could not resolve DID: ${did}`);
-	didToSigningKeyCache.set(did, { key: didKey, expires: Date.now() + 60 * 60 * 1000 });
-	return didKey;
+  if (!didKey) throw new Error(`Could not resolve DID: ${did}`);
+  didToSigningKeyCache.set(did, { key: didKey, expires: Date.now() + 60 * 60 * 1000 });
+  return didKey;
 }
 
 /**
@@ -72,82 +72,71 @@ export async function resolveDidToSigningKey(did: string, forceRefresh?: boolean
  * @returns The payload of the JWT.
  */
 export async function verifyJwt(
-	jwtStr: string,
-	ownDid: string | null,
-	lxm: string | null,
+  jwtStr: string,
+  ownDid: string | null,
+  lxm: string | null,
 ): Promise<{ iss: string; aud: string; exp: number; lxm?: string; jti?: string }> {
-	const parts = jwtStr.split(".");
-	if (parts.length !== 3) {
-		throw new XRPCError(401, { kind: "BadJwt", description: "Poorly formatted JWT" });
-	}
-	const payload = parsePayload(parts[1]);
-	const sig = parts[2];
+  const parts = jwtStr.split(".");
+  if (parts.length !== 3) {
+    throw new XRPCError(401, "BadJwt", "Poorly formatted JWT");
+  }
+  const payload = parsePayload(parts[1]);
+  const sig = parts[2];
 
-	if (Date.now() / 1000 > payload.exp) {
-		throw new XRPCError(401, { kind: "JwtExpired", description: "JWT expired" });
-	}
-	if (ownDid !== null && payload.aud !== ownDid) {
-		throw new XRPCError(401, {
-			kind: "BadJwtAudience",
-			description: "JWT audience does not match service DID",
-		});
-	}
-	if (lxm !== null && payload.lxm !== lxm) {
-		throw new XRPCError(401, {
-			kind: "BadJwtLexiconMethod",
-			description: payload.lxm !== undefined
-				? `Bad JWT lexicon method ("lxm"). Must match: ${lxm}`
-				: `Missing JWT lexicon method ("lxm"). Must match: ${lxm}`,
-		});
-	}
+  if (Date.now() / 1000 > payload.exp) {
+    throw new XRPCError(401, "JwtExpired", "JWT expired");
+  }
+  if (ownDid !== null && payload.aud !== ownDid) {
+    throw new XRPCError(401, "BadJwtAudience", "JWT audience does not match service DID");
+  }
+  if (lxm !== null && payload.lxm !== lxm) {
+    throw new XRPCError(
+      401,
+      "BadJwtLexiconMethod",
+      payload.lxm !== undefined
+        ? `Bad JWT lexicon method ("lxm"). Must match: ${lxm}`
+        : `Missing JWT lexicon method ("lxm"). Must match: ${lxm}`
+    );
+  }
 
-	const msgBytes = ui8.fromString(parts.slice(0, 2).join("."), "utf8");
-	const sigBytes = ui8.fromString(sig, "base64url");
+  const msgBytes = ui8.fromString(parts.slice(0, 2).join("."), "utf8");
+  const sigBytes = ui8.fromString(sig, "base64url");
 
-	const signingKey = await resolveDidToSigningKey(payload.iss, false).catch((e) => {
-		console.error(e);
-		throw new XRPCError(500, { kind: "InternalError", description: "Could not resolve DID" });
-	});
+  const signingKey = await resolveDidToSigningKey(payload.iss, false).catch((e) => {
+    console.error(e);
+    throw new XRPCError(500, "InternalError", "Could not resolve DID");
+  });
 
-	let validSig: boolean;
-	try {
-		validSig = verifySignatureWithKey(signingKey, msgBytes, sigBytes);
-	} catch (err) {
-		throw new XRPCError(401, {
-			kind: "BadJwtSignature",
-			description: "Could not verify JWT signature",
-		});
-	}
+  let validSig: boolean;
+  try {
+    validSig = verifySignatureWithKey(signingKey, msgBytes, sigBytes);
+  } catch (err) {
+    throw new XRPCError(401, "BadJwtSignature", "Could not verify JWT signature");
+  }
 
-	if (!validSig) {
-		// get fresh signing key in case it failed due to a recent rotation
-		const freshSigningKey = await resolveDidToSigningKey(payload.iss, true);
-		try {
-			validSig = freshSigningKey !== signingKey
-				? verifySignatureWithKey(freshSigningKey, msgBytes, sigBytes)
-				: false;
-		} catch (err) {
-			throw new XRPCError(401, {
-				kind: "BadJwtSignature",
-				description: "Could not verify JWT signature",
-			});
-		}
-	}
+  if (!validSig) {
+    // get fresh signing key in case it failed due to a recent rotation
+    const freshSigningKey = await resolveDidToSigningKey(payload.iss, true);
+    try {
+      validSig = freshSigningKey !== signingKey
+        ? verifySignatureWithKey(freshSigningKey, msgBytes, sigBytes)
+        : false;
+    } catch (err) {
+      throw new XRPCError(401, "BadJwtSignature", "Could not verify JWT signature");
+    }
+  }
 
-	if (!validSig) {
-		throw new XRPCError(401, {
-			kind: "BadJwtSignature",
-			description: "JWT signature does not match JWT issuer",
-		});
-	}
+  if (!validSig) {
+    throw new XRPCError(401, "BadJwtSignature", "JWT signature does not match JWT issuer");
+  }
 
-	return payload;
+  return payload;
 }
 
 export function k256Sign(privateKey: Uint8Array, msg: Uint8Array): Uint8Array {
-	const msgHash = sha256(msg);
-	const sig = k256.sign(msgHash, privateKey, { lowS: true });
-	return sig.toCompactRawBytes();
+  const msgHash = sha256(msg);
+  const sig = k256.sign(msgHash, privateKey, { lowS: true });
+  return sig.toCompactRawBytes();
 }
 
 /**
@@ -157,10 +146,10 @@ export function k256Sign(privateKey: Uint8Array, msg: Uint8Array): Uint8Array {
  * @param sigBytes The signature to verify.
  */
 function verifySignatureWithKey(didKey: string, msgBytes: Uint8Array, sigBytes: Uint8Array) {
-	if (!didKey.startsWith("did:key:")) throw new Error("Incorrect prefix for did:key: " + didKey);
-	const { jwtAlg } = parseDidMultikey(didKey);
-	const curve = jwtAlg === P256_JWT_ALG ? "p256" : "k256";
-	return verifyDidSig(curve, didKey, msgBytes, sigBytes);
+  if (!didKey.startsWith("did:key:")) throw new Error("Incorrect prefix for did:key: " + didKey);
+  const { jwtAlg } = parseDidMultikey(didKey);
+  const curve = jwtAlg === P256_JWT_ALG ? "p256" : "k256";
+  return verifyDidSig(curve, didKey, msgBytes, sigBytes);
 }
 
 /**
@@ -170,31 +159,31 @@ function verifySignatureWithKey(didKey: string, msgBytes: Uint8Array, sigBytes: 
  * @returns The atproto signing key.
  */
 const parseKeyFromDidDocument = (doc: DidDocument, did: string): string => {
-	if (!Array.isArray(doc?.verificationMethod)) {
-		throw new Error(`Could not parse signingKey from doc: ${JSON.stringify(doc)}`);
-	}
-	const key = doc.verificationMethod.find((method) =>
-		method?.id === `${did}#atproto` || method?.id === `#atproto`
-	);
-	if (
-		!key || typeof key !== "object" || !("type" in key) || typeof key.type !== "string"
-		|| !("publicKeyMultibase" in key) || typeof key.publicKeyMultibase !== "string"
-	) {
-		throw new Error(`Could not resolve DID: ${did}`);
-	}
+  if (!Array.isArray(doc?.verificationMethod)) {
+    throw new Error(`Could not parse signingKey from doc: ${JSON.stringify(doc)}`);
+  }
+  const key = doc.verificationMethod.find((method: { id?: string }) =>
+    method?.id === `${did}#atproto` || method?.id === `#atproto`
+  );
+  if (
+    !key || typeof key !== "object" || !("type" in key) || typeof key.type !== "string"
+    || !("publicKeyMultibase" in key) || typeof key.publicKeyMultibase !== "string"
+  ) {
+    throw new Error(`Could not resolve DID: ${did}`);
+  }
 
-	const keyBytes = multibaseToBytes(key.publicKeyMultibase);
-	let didKey: string | undefined = undefined;
-	if (key.type === "EcdsaSecp256r1VerificationKey2019") {
-		didKey = formatDidKey(P256_JWT_ALG, keyBytes);
-	} else if (key.type === "EcdsaSecp256k1VerificationKey2019") {
-		didKey = formatDidKey(SECP256K1_JWT_ALG, keyBytes);
-	} else if (key.type === "Multikey") {
-		const parsed = parseDidMultikey("did:key:" + key.publicKeyMultibase);
-		didKey = formatDidKey(parsed.jwtAlg, parsed.keyBytes);
-	}
-	if (!didKey) throw new Error(`Could not parse signingKey from doc: ${JSON.stringify(doc)}`);
-	return didKey;
+  const keyBytes = multibaseToBytes(key.publicKeyMultibase);
+  let didKey: string | undefined = undefined;
+  if (key.type === "EcdsaSecp256r1VerificationKey2019") {
+    didKey = formatDidKey(P256_JWT_ALG, keyBytes);
+  } else if (key.type === "EcdsaSecp256k1VerificationKey2019") {
+    didKey = formatDidKey(SECP256K1_JWT_ALG, keyBytes);
+  } else if (key.type === "Multikey") {
+    const parsed = parseDidMultikey("did:key:" + key.publicKeyMultibase);
+    didKey = formatDidKey(parsed.jwtAlg, parsed.keyBytes);
+  }
+  if (!didKey) throw new Error(`Could not parse signingKey from doc: ${JSON.stringify(doc)}`);
+  return didKey;
 };
 
 /**
@@ -202,20 +191,22 @@ const parseKeyFromDidDocument = (doc: DidDocument, did: string): string => {
  * @param privateKey The private key to parse.
  */
 export const parsePrivateKey = (privateKey: string): Uint8Array => {
-	let keyBytes: Uint8Array | undefined;
-	try {
-		keyBytes = ui8.fromString(privateKey, "hex");
-		if (keyBytes.byteLength !== 32) throw 0;
-	} catch {
-		try {
-			keyBytes = ui8.fromString(privateKey, "base64url");
-		} catch {}
-	} finally {
-		if (!keyBytes) {
-			throw new Error("Invalid private key. Must be hex or base64url, and 32 bytes long.");
-		}
-		return keyBytes;
-	}
+  let keyBytes: Uint8Array;
+  try {
+    keyBytes = ui8.fromString(privateKey, "hex");
+    if (keyBytes.byteLength !== 32) throw new Error();
+  } catch {
+    try {
+      const base64Bytes = ui8.fromString(privateKey, "base64url");
+      if (base64Bytes.byteLength !== 32) {
+        throw new Error();
+      }
+      keyBytes = base64Bytes;
+    } catch {
+      throw new Error("Invalid private key. Must be hex or base64url, and 32 bytes long.");
+    }
+  }
+  return keyBytes;
 };
 
 /**
@@ -223,10 +214,15 @@ export const parsePrivateKey = (privateKey: string): Uint8Array => {
  * @param jwtAlg The JWT algorithm used by the signing key.
  * @param keyBytes The bytes of the pubkey.
  */
-export const formatDidKey = (
-	jwtAlg: typeof P256_JWT_ALG | typeof SECP256K1_JWT_ALG,
-	keyBytes: Uint8Array,
-): string => DID_KEY_PREFIX + formatMultikey(jwtAlg, keyBytes);
+export function formatDidKey(
+  jwtAlg: typeof P256_JWT_ALG | typeof SECP256K1_JWT_ALG,
+  keyBytes?: Uint8Array,
+): string {
+  if (!keyBytes) {
+    throw new Error("keyBytes is required");
+  }
+  return `${DID_KEY_PREFIX}${formatMultikey(jwtAlg, keyBytes)}`;
+}
 
 /**
  * Checks if a bytestring starts with a prefix.
@@ -234,7 +230,7 @@ export const formatDidKey = (
  * @param prefix The prefix to check for.
  */
 const hasPrefix = (bytes: Uint8Array, prefix: Uint8Array): boolean => {
-	return ui8.equals(prefix, bytes.subarray(0, prefix.byteLength));
+  return ui8.equals(prefix, bytes.subarray(0, prefix.byteLength));
 };
 
 /**
@@ -244,8 +240,8 @@ const hasPrefix = (bytes: Uint8Array, prefix: Uint8Array): boolean => {
  * @see https://medium.com/asecuritysite-when-bob-met-alice/02-03-or-04-so-what-are-compressed-and-uncompressed-public-keys-6abcb57efeb6
  */
 const compressPubkey = (curve: "p256" | "k256", keyBytes: Uint8Array): Uint8Array => {
-	const ProjectivePoint = curve === "p256" ? p256.ProjectivePoint : k256.ProjectivePoint;
-	return ProjectivePoint.fromHex(keyBytes).toRawBytes(true);
+  const ProjectivePoint = curve === "p256" ? p256.ProjectivePoint : k256.ProjectivePoint;
+  return ProjectivePoint.fromHex(keyBytes).toRawBytes(true);
 };
 
 /**
@@ -254,11 +250,11 @@ const compressPubkey = (curve: "p256" | "k256", keyBytes: Uint8Array): Uint8Arra
  * @param compressed The compressed pubkey to decompress.
  */
 const decompressPubkey = (curve: "p256" | "k256", compressed: Uint8Array): Uint8Array => {
-	if (compressed.length !== 33) {
-		throw new Error("Incorrect compressed pubkey length: " + compressed.length);
-	}
-	const ProjectivePoint = curve === "p256" ? p256.ProjectivePoint : k256.ProjectivePoint;
-	return ProjectivePoint.fromHex(compressed).toRawBytes(false);
+  if (compressed.length !== 33) {
+    throw new Error("Incorrect compressed pubkey length: " + compressed.length);
+  }
+  const ProjectivePoint = curve === "p256" ? p256.ProjectivePoint : k256.ProjectivePoint;
+  return ProjectivePoint.fromHex(compressed).toRawBytes(false);
 };
 
 /**
@@ -269,21 +265,21 @@ const decompressPubkey = (curve: "p256" | "k256", compressed: Uint8Array): Uint8
  * @param sig The signature to verify.
  */
 const verifyDidSig = (
-	curve: "p256" | "k256",
-	did: string,
-	data: Uint8Array,
-	sig: Uint8Array,
+  curve: "p256" | "k256",
+  did: string,
+  data: Uint8Array,
+  sig: Uint8Array,
 ): boolean => {
-	const prefixedBytes = extractPrefixedBytes(extractMultikey(did));
-	const prefix = curve === "p256" ? P256_DID_PREFIX : SECP256K1_DID_PREFIX;
-	if (!hasPrefix(prefixedBytes, prefix)) {
-		throw new Error("Invalid curve for DID: " + did);
-	}
+  const prefixedBytes = extractPrefixedBytes(extractMultikey(did));
+  const prefix = curve === "p256" ? P256_DID_PREFIX : SECP256K1_DID_PREFIX;
+  if (!hasPrefix(prefixedBytes, prefix)) {
+    throw new Error("Invalid curve for DID: " + did);
+  }
 
-	const keyBytes = prefixedBytes.slice(prefix.length);
-	const msgHash = sha256(data);
+  const keyBytes = prefixedBytes.slice(prefix.length);
+  const msgHash = sha256(data);
 
-	return (curve === "p256" ? p256 : k256).verify(sig, msgHash, keyBytes, { lowS: false });
+  return (curve === "p256" ? p256 : k256).verify(sig, msgHash, keyBytes, { lowS: false });
 };
 
 /**
@@ -292,19 +288,19 @@ const verifyDidSig = (
  * @param keyBytes The bytes of the signing key.
  */
 const formatMultikey = (
-	jwtAlg: typeof P256_JWT_ALG | typeof SECP256K1_JWT_ALG,
-	keyBytes: Uint8Array,
+  jwtAlg: typeof P256_JWT_ALG | typeof SECP256K1_JWT_ALG,
+  keyBytes: Uint8Array,
 ): string => {
-	const curve = jwtAlg === P256_JWT_ALG ? "p256" : "k256";
-	let prefixedBytes: Uint8Array;
-	if (jwtAlg === P256_JWT_ALG) {
-		prefixedBytes = ui8.concat([P256_DID_PREFIX, compressPubkey(curve, keyBytes)]);
-	} else if (jwtAlg === SECP256K1_JWT_ALG) {
-		prefixedBytes = ui8.concat([SECP256K1_DID_PREFIX, compressPubkey(curve, keyBytes)]);
-	} else {
-		throw new Error("Invalid JWT algorithm: " + jwtAlg);
-	}
-	return (BASE58_MULTIBASE_PREFIX + ui8.toString(prefixedBytes, "base58btc"));
+  const curve = jwtAlg === P256_JWT_ALG ? "p256" : "k256";
+  let prefixedBytes: Uint8Array;
+  if (jwtAlg === P256_JWT_ALG) {
+    prefixedBytes = ui8.concat([P256_DID_PREFIX, compressPubkey(curve, keyBytes)]);
+  } else if (jwtAlg === SECP256K1_JWT_ALG) {
+    prefixedBytes = ui8.concat([SECP256K1_DID_PREFIX, compressPubkey(curve, keyBytes)]);
+  } else {
+    throw new Error("Invalid JWT algorithm: " + jwtAlg);
+  }
+  return (BASE58_MULTIBASE_PREFIX + ui8.toString(prefixedBytes, "base58btc"));
 };
 
 /**
@@ -312,21 +308,21 @@ const formatMultikey = (
  * @param didKey The did:key to parse.
  */
 const parseDidMultikey = (
-	didKey: string,
+  didKey: string,
 ): { jwtAlg: typeof P256_JWT_ALG | typeof SECP256K1_JWT_ALG; keyBytes: Uint8Array } => {
-	const multikey = extractMultikey(didKey);
-	const prefixedBytes = extractPrefixedBytes(multikey);
+  const multikey = extractMultikey(didKey);
+  const prefixedBytes = extractPrefixedBytes(multikey);
 
-	const keyCurve = hasPrefix(prefixedBytes, P256_DID_PREFIX)
-		? "p256"
-		: hasPrefix(prefixedBytes, SECP256K1_DID_PREFIX)
-		? "k256"
-		: null;
-	if (!keyCurve) throw new Error("Invalid curve for multikey: " + multikey);
+  const keyCurve = hasPrefix(prefixedBytes, P256_DID_PREFIX)
+    ? "p256"
+    : hasPrefix(prefixedBytes, SECP256K1_DID_PREFIX)
+    ? "k256"
+    : null;
+  if (!keyCurve) throw new Error("Invalid curve for multikey: " + multikey);
 
-	const keyBytes = decompressPubkey(keyCurve, prefixedBytes.subarray(DID_PREFIX_LENGTH));
+  const keyBytes = decompressPubkey(keyCurve, prefixedBytes.subarray(DID_PREFIX_LENGTH));
 
-	return { jwtAlg: keyCurve === "p256" ? P256_JWT_ALG : SECP256K1_JWT_ALG, keyBytes };
+  return { jwtAlg: keyCurve === "p256" ? P256_JWT_ALG : SECP256K1_JWT_ALG, keyBytes };
 };
 
 /**
@@ -335,8 +331,8 @@ const parseDidMultikey = (
  * @returns A compressed pubkey, without the did:key prefix.
  */
 const extractMultikey = (did: string): string => {
-	if (!did.startsWith(DID_KEY_PREFIX)) throw new Error("Incorrect prefix for did:key: " + did);
-	return did.slice(DID_KEY_PREFIX.length);
+  if (!did.startsWith(DID_KEY_PREFIX)) throw new Error("Incorrect prefix for did:key: " + did);
+  return did.slice(DID_KEY_PREFIX.length);
 };
 
 /**
@@ -345,10 +341,10 @@ const extractMultikey = (did: string): string => {
  * @returns The pubkey without the multibase base58 prefix.
  */
 const extractPrefixedBytes = (multikey: string): Uint8Array => {
-	if (!multikey.startsWith(BASE58_MULTIBASE_PREFIX)) {
-		throw new Error("Incorrect prefix for multikey: " + multikey);
-	}
-	return ui8.fromString(multikey.slice(BASE58_MULTIBASE_PREFIX.length), "base58btc");
+  if (!multikey.startsWith(BASE58_MULTIBASE_PREFIX)) {
+    throw new Error("Incorrect prefix for multikey: " + multikey);
+  }
+  return ui8.fromString(multikey.slice(BASE58_MULTIBASE_PREFIX.length), "base58btc");
 };
 
 /**
@@ -356,21 +352,21 @@ const extractPrefixedBytes = (multikey: string): Uint8Array => {
  * @param b64 The JWT payload to parse.
  */
 const parsePayload = (
-	b64: string,
+  b64: string,
 ): { iss: string; aud: string; exp: number; lxm?: string; nonce?: string } => {
-	const payload = JSON.parse(ui8.toString(ui8.fromString(b64, "base64url"), "utf8"));
-	if (
-		!payload
-		|| typeof payload !== "object"
-		|| typeof payload.iss !== "string"
-		|| typeof payload.aud !== "string"
-		|| typeof payload.exp !== "number"
-		|| (payload.lxm && typeof payload.lxm !== "string")
-		|| (payload.nonce && typeof payload.nonce !== "string")
-	) {
-		throw new XRPCError(401, { kind: "BadJwt", description: "Poorly formatted JWT" });
-	}
-	return payload;
+  const payload = JSON.parse(ui8.toString(ui8.fromString(b64, "base64url"), "utf8"));
+  if (
+    !payload
+    || typeof payload !== "object"
+    || typeof payload.iss !== "string"
+    || typeof payload.aud !== "string"
+    || typeof payload.exp !== "number"
+    || (payload.lxm && typeof payload.lxm !== "string")
+    || (payload.nonce && typeof payload.nonce !== "string")
+  ) {
+    throw new XRPCError(401, "BadJwt", "Poorly formatted JWT");
+  }
+  return payload;
 };
 
 /**
@@ -378,26 +374,26 @@ const parsePayload = (
  * @param mb The multibase encoded string.
  */
 const multibaseToBytes = (mb: string): Uint8Array => {
-	const base = mb[0];
-	const key = mb.slice(1);
-	switch (base) {
-		case "f":
-			return ui8.fromString(key, "base16");
-		case "F":
-			return ui8.fromString(key, "base16upper");
-		case "b":
-			return ui8.fromString(key, "base32");
-		case "B":
-			return ui8.fromString(key, "base32upper");
-		case "z":
-			return ui8.fromString(key, "base58btc");
-		case "m":
-			return ui8.fromString(key, "base64");
-		case "u":
-			return ui8.fromString(key, "base64url");
-		case "U":
-			return ui8.fromString(key, "base64urlpad");
-		default:
-			throw new Error(`Unsupported multibase: :${mb}`);
-	}
+  const base = mb[0];
+  const key = mb.slice(1);
+  switch (base) {
+    case "f":
+      return ui8.fromString(key, "base16");
+    case "F":
+      return ui8.fromString(key, "base16upper");
+    case "b":
+      return ui8.fromString(key, "base32");
+    case "B":
+      return ui8.fromString(key, "base32upper");
+    case "z":
+      return ui8.fromString(key, "base58btc");
+    case "m":
+      return ui8.fromString(key, "base64");
+    case "u":
+      return ui8.fromString(key, "base64url");
+    case "U":
+      return ui8.fromString(key, "base64urlpad");
+    default:
+      throw new Error(`Unsupported multibase: :${mb}`);
+  }
 };
