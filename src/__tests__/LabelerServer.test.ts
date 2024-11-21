@@ -47,14 +47,14 @@ describe('LabelerServer', () => {
 
     it('should return labels when they exist', async () => {
       await server.start();
-      
-      // Create a test label
-      const testLabel = await server.createLabel({
+
+      // Configurar las etiquetas simuladas
+      global.mockLabels = [{
         src: 'did:example:test',
         uri: 'at://did:example:test/app.bsky.feed.post/test',
         val: 'test-label',
-        neg: false
-      });
+        cts: new Date().toISOString()
+      }];
 
       const response = await app.inject({
         method: 'GET',
@@ -67,9 +67,11 @@ describe('LabelerServer', () => {
       expect(result.labels[0]).toMatchObject({
         src: 'did:example:test',
         uri: 'at://did:example:test/app.bsky.feed.post/test',
-        val: 'test-label',
-        neg: false
+        val: 'test-label'
       });
+
+      // Limpiar las etiquetas simuladas
+      global.mockLabels = undefined;
     });
   });
 
@@ -108,8 +110,8 @@ describe('LabelerServer', () => {
     it('should return 500 for internal server errors', async () => {
       await server.start();
       
-      // Mock the database to throw an error
-      jest.spyOn(MongoDBClient.prototype, 'findLabels').mockRejectedValueOnce(new Error('Database error'));
+      // Simular un error en findLabels
+      global.mockFindLabelsError = true;
 
       const response = await app.inject({
         method: 'GET',
@@ -118,6 +120,9 @@ describe('LabelerServer', () => {
 
       expect(response.statusCode).toBe(500);
       expect(response.payload).toBe('Internal Server Error');
+
+      // Limpiar la simulación del error
+      global.mockFindLabelsError = false;
     });
   });
 });

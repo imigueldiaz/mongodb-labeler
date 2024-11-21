@@ -2,7 +2,7 @@ import "@atcute/ozone/lexicons";
 import { XRPCError } from "@atproto/xrpc";
 import fastifyWebsocket from "@fastify/websocket";
 import fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
-import { WebSocket } from "ws";
+import { SocketStream } from '@fastify/websocket';
 import { MongoDBClient } from "./mongodb.js";
 import { parsePrivateKey } from "./util/crypto.js";
 import {
@@ -81,7 +81,7 @@ export class LabelerServer {
     private auth: (did: string) => boolean | Promise<boolean>;
 
     /** Open WebSocket connections, mapped by request NSID. */
-    private connections = new Map<string, Set<WebSocket>>();
+    private connections = new Map<string, Set<SocketStream>>();
 
     /** The signing key used for the labeler. */
     private signer: any;
@@ -218,7 +218,7 @@ export class LabelerServer {
      * @param nsid The NSID of the lexicon to subscribe to.
      * @param ws The WebSocket connection to add.
      */
-    private addSubscription(nsid: string, ws: WebSocket) {
+    private addSubscription(nsid: string, ws: SocketStream) {
         let connections = this.connections.get(nsid);
         if (!connections) {
             connections = new Set();
@@ -232,7 +232,7 @@ export class LabelerServer {
      * @param nsid The NSID of the lexicon to unsubscribe from.
      * @param ws The WebSocket connection to remove.
      */
-    private removeSubscription(nsid: string, ws: WebSocket) {
+    private removeSubscription(nsid: string, ws: SocketStream) {
         const connections = this.connections.get(nsid);
         if (connections) {
             connections.delete(ws);
@@ -281,7 +281,7 @@ export class LabelerServer {
      * @param ws The WebSocket connection to send the labels to.
      * @param req The incoming request containing the query parameters.
      */
-    subscribeLabelsHandler: SubscriptionHandler<{ cursor?: string }> = async (ws: WebSocket, req: FastifyRequest<{
+    subscribeLabelsHandler: SubscriptionHandler<{ cursor?: string }> = async (ws: SocketStream, req: FastifyRequest<{
         Querystring: {
             cursor?: string;
         }
@@ -298,13 +298,13 @@ export class LabelerServer {
                         { seq, labels: [this.formatLabel({ ...labelData, id: seq })] },
                         "#labels"
                     );
-                    ws.send(bytes);
+                    ws.socket.send(bytes);
                 }
             } catch (e) {
                 console.error(e);
                 const errorBytes = frameToBytes("error", "An unknown error occurred");
-                ws.send(errorBytes);
-                ws.terminate();
+                ws.socket.send(errorBytes);
+                ws.socket.terminate();
                 return;
             }
         }
@@ -339,10 +339,11 @@ export class LabelerServer {
         };
     }> = async (req, res): Promise<{ createdAt: string }> => {
         const { event } = req.body;
-        const { subject, subjectBlobCids = [], labels = {} } = event;
+        const { labels = {} } = event;
         const { create = [], negate = [] } = labels;
 
         try {
+            // TODO: Implement label creation and negation
             const createdAt = new Date().toISOString();
             await res.send({ createdAt });
             return { createdAt };
@@ -361,8 +362,8 @@ export class LabelerServer {
      * Returns a 501 Method Not Implemented response.
      * @returns {string} "Method Not Implemented"
      */
-    unknownMethodHandler: QueryHandler = async (_req: FastifyRequest, res: any) =>
-        res.status(501).send("Method Not Implemented");
+    unknownMethodHandler: QueryHandler = (_req: FastifyRequest, res: any): Promise<void> =>
+        Promise.resolve(res.status(501).send("Method Not Implemented"));
 
     /**
      * Handles any errors that may occur while handling a request.
@@ -373,11 +374,11 @@ export class LabelerServer {
      * @param _req - The request that caused the error.
      * @param res - The response to be sent.
      */
-    errorHandler: typeof this.app.errorHandler = async (err: XRPCError | Error, _req: FastifyRequest, res: any) => {
+    errorHandler: typeof this.app.errorHandler = (err: XRPCError | Error, _req: FastifyRequest, res: any): Promise<void> => {
         if (err instanceof XRPCError) {
-            return res.status(err.status).send(err.message);
+            return Promise.resolve(res.status(err.status).send(err.message));
         } else {
-            return res.status(500).send("Internal Server Error");
+            return Promise.resolve(res.status(500).send("Internal Server Error"));
         }
     };
 }

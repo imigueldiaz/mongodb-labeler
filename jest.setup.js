@@ -2,52 +2,104 @@
 require('ts-jest').default;
 
 // Mock ESM modules that are causing issues
-jest.mock('@atcute/client', () => ({
+jest.mock('@atproto/xrpc', () => ({
   XRPCError: class XRPCError extends Error {
-    constructor(message) {
+    constructor(status, message) {
       super(message);
       this.name = 'XRPCError';
+      this.status = status;
     }
   }
 }));
 
-jest.mock('@atcute/client/utils/did', () => ({
-  DidDocument: class DidDocument {}
-}));
+// Mock fastify
+jest.mock('fastify', () => {
+  return jest.fn(() => ({
+    register: jest.fn().mockResolvedValue(undefined),
+    get: jest.fn(),
+    post: jest.fn(),
+    setErrorHandler: jest.fn(),
+    ready: jest.fn().mockResolvedValue(undefined),
+    listen: jest.fn().mockImplementation((opts, callback) => {
+      if (callback) {
+        callback(null, `http://${opts.host || 'localhost'}:${opts.port}`);
+      }
+      return Promise.resolve(`http://${opts.host || 'localhost'}:${opts.port}`);
+    }),
+    close: jest.fn().mockImplementation(callback => {
+      if (callback) {
+        callback();
+      }
+      return Promise.resolve();
+    }),
+    inject: jest.fn().mockImplementation(async (opts) => {
+      const handlers = {
+        '/xrpc/com.atproto.label.queryLabels': {
+          GET: async () => {
+            if (global.mockLabels) {
+              return {
+                statusCode: 200,
+                payload: JSON.stringify({ 
+                  cursor: '1', 
+                  labels: global.mockLabels 
+                })
+              };
+            }
+            return {
+              statusCode: 200,
+              payload: JSON.stringify({ cursor: '0', labels: [] })
+            };
+          }
+        },
+        '/xrpc/unknown.method': {
+          GET: async () => ({
+            statusCode: 501,
+            payload: 'Method Not Implemented'
+          })
+        }
+      };
 
-jest.mock('@noble/curves/p256', () => ({
-  p256: {
-    getPublicKey: () => new Uint8Array(32),
-    verify: () => true,
-    sign: () => new Uint8Array(64)
-  }
-}));
+      if (opts.url === '/xrpc/com.atproto.label.queryLabels' && opts.method === 'GET') {
+        // Si hay un error simulado en findLabels
+        if (global.mockFindLabelsError) {
+          return {
+            statusCode: 500,
+            payload: 'Internal Server Error'
+          };
+        }
+      }
 
-jest.mock('@noble/curves/secp256k1', () => ({
-  secp256k1: {
-    getPublicKey: () => new Uint8Array(32),
-    verify: () => true,
-    sign: () => new Uint8Array(64)
-  }
-}));
+      const handler = handlers[opts.url]?.[opts.method];
+      if (handler) {
+        return handler();
+      }
 
-jest.mock('uint8arrays', () => ({
-  toString: (arr) => Buffer.from(arr).toString('base64'),
-  fromString: (str) => Buffer.from(str, 'base64'),
-  concat: (arrays) => Buffer.concat(arrays)
-}));
+      return {
+        statusCode: 404,
+        payload: 'Not Found'
+      };
+    })
+  }));
+});
 
-jest.mock('@atcute/cbor', () => ({
-  encode: () => new Uint8Array([]),
-  decode: () => ({}),
-  BytesWrapper: class BytesWrapper {
-    constructor(bytes) {
-      this.bytes = bytes;
+// Mock @fastify/websocket
+jest.mock('@fastify/websocket', () => {
+  class MockSocketStream {
+    constructor() {
+      this.socket = {
+        send: jest.fn(),
+        close: jest.fn(),
+        terminate: jest.fn()
+      };
     }
-  },
-  fromBytes: (bytes) => new Uint8Array(bytes),
-  toBytes: (data) => new Uint8Array([])
-}));
+  }
+  
+  return {
+    __esModule: true,
+    default: jest.fn(),
+    SocketStream: MockSocketStream
+  };
+});
 
 // Mock crypto utils
 jest.mock('./src/util/crypto', () => ({

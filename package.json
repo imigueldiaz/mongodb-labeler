@@ -48,23 +48,17 @@
 		"supertest": "^6.3.4",
 		"ts-jest": "^29.1.2",
 		"ts-jest-resolver": "^2.0.1",
-		"typescript": "^5.5.4",
+		"typescript": "^5.2.2",
 		"uint8arrays": "^5.1.0"
 	},
 	"dependencies": {
-		"@atcute/bluesky": "^1.0.7",
-		"@atcute/cbor": "^1.0.2",
-		"@atcute/client": "^2.0.4",
-		"@atcute/ozone": "^1.0.6",
-		"@atproto/api": "^0.13.16",
-		"@atproto/xrpc": "^0.6.4",
-		"@atproto/xrpc-server": "^0.7.3",
-		"@fastify/websocket": "^10.0.1",
-		"@noble/curves": "^1.6.0",
-		"@noble/hashes": "^1.5.0",
-		"fastify": "^4.28.1",
+		"@atproto/api": "^0.9.6",
+		"@atproto/common": "^0.4.4",
+		"@atproto/xrpc": "^0.4.3",
+		"@fastify/websocket": "^8.3.1",
+		"fastify": "^4.26.1",
 		"mongodb": "^6.3.0",
-		"prompts": "^2.4.2"
+		"ws": "^8.16.0"
 	},
 	"files": [
 		"dist"
