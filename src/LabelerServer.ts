@@ -34,7 +34,7 @@ export class LabelerServer {
 		const unsignedLabel: UnsignedLabel = { 
 			...data, 
 			cts: new Date().toISOString(),
-			src: (data.src || this.did) as `did:${string}` // Assert the type since we know both values are valid DIDs
+			src: data.src || this.did 
 		};
 
 		const sig = await this.signer.sign(Buffer.from(JSON.stringify(unsignedLabel)));
