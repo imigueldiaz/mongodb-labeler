@@ -1,19 +1,24 @@
 {
-	"name": "@skyware/labeler",
+	"name": "@imigueldiaz/mongodb-labeler",
 	"type": "module",
-	"description": "A lightweight alternative to Ozone for operating an atproto labeler.",
-	"version": "0.1.13",
+	"description": "A MongoDB labeler and data management tool",
+	"version": "0.1.0",
 	"main": "dist/index.js",
 	"types": "dist/index.d.ts",
 	"bin": "dist/bin.js",
-	"license": "MPL-2.0",
-	"repository": "https://github.com/skyware-js/labeler",
-	"homepage": "https://skyware.js.org/docs/labeler",
+	"license": "MIT",
+	"repository": "https://github.com/imigueldiaz/mongodb-labeler",
+	"homepage": "https://github.com/imigueldiaz/mongodb-labeler#readme",
 	"keywords": [
-		"bluesky",
+		"mongodb",
 		"labeler",
+		"data-management",
+		"database",
 		"atproto",
-		"skyware"
+		"bluesky",
+		"content-moderation",
+		"data-labeling",
+		"classification"
 	],
 	"scripts": {
 		"build": "tsc",
