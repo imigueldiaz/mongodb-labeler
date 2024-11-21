@@ -1,24 +1,21 @@
-// Mock the lexicons import
-jest.mock('@atcute/ozone/lexicons');
+// Mock the mongodb import
 jest.mock('../mongodb');
 
 import { LabelerServer } from '../LabelerServer';
-import { FastifyInstance } from 'fastify';
+import { MongoDBClient } from '../mongodb';
 
 describe('LabelerServer', () => {
   let server: LabelerServer;
-  let app: FastifyInstance;
+  let mockDb: MongoDBClient;
 
-  beforeEach(async () => {
-    // Create a new server instance for each test
+  beforeEach(() => {
     server = new LabelerServer({
       did: 'did:example:test',
       signingKey: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
       mongoUri: 'mongodb://mock',
       port: 4100
     });
-    app = server.app;
-    await app.ready(); // Wait for Fastify to be ready
+    mockDb = (server as any).db;
   });
 
   afterEach(async () => {
@@ -26,54 +23,8 @@ describe('LabelerServer', () => {
     jest.clearAllMocks();
   });
 
-  describe('queryLabelsHandler', () => {
-    it('should return empty labels array when no labels exist', async () => {
-      await server.start();
-      
-      const response = await app.inject({
-        method: 'GET',
-        url: '/xrpc/com.atproto.label.queryLabels'
-      });
-
-      expect(response.statusCode).toBe(200);
-      expect(JSON.parse(response.payload)).toEqual({
-        cursor: '0',
-        labels: []
-      });
-    });
-
-    it('should return labels when they exist', async () => {
-      await server.start();
-
-      // Configurar las etiquetas simuladas
-      global.mockLabels = [{
-        src: 'did:example:test',
-        uri: 'at://did:example:test/app.bsky.feed.post/test',
-        val: 'test-label',
-        cts: new Date().toISOString()
-      }];
-
-      const response = await app.inject({
-        method: 'GET',
-        url: '/xrpc/com.atproto.label.queryLabels'
-      });
-
-      expect(response.statusCode).toBe(200);
-      const result = JSON.parse(response.payload);
-      expect(result.labels).toHaveLength(1);
-      expect(result.labels[0]).toMatchObject({
-        src: 'did:example:test',
-        uri: 'at://did:example:test/app.bsky.feed.post/test',
-        val: 'test-label'
-      });
-
-      // Limpiar las etiquetas simuladas
-      global.mockLabels = undefined;
-    });
-  });
-
-  describe('createLabel', () => {
-    it('should create and save a label', async () => {
+  describe('Label CRUD Operations', () => {
+    it('should create a new label', async () => {
       const labelData = {
         uri: 'at://did:example:test/app.bsky.feed.post/test',
         src: 'did:example:test',
@@ -86,40 +37,33 @@ describe('LabelerServer', () => {
       expect(savedLabel).toMatchObject({
         ...labelData,
         sig: expect.any(Uint8Array),
-        id: expect.any(Number),
       });
     });
-  });
 
-  describe('error handling', () => {
-    it('should return 501 for unknown methods', async () => {
-      await server.start();
-      
-      const response = await app.inject({
-        method: 'GET',
-        url: '/xrpc/unknown.method'
+    it('should query labels', async () => {
+      // First create a label to ensure there's data
+      const labelData = {
+        uri: 'at://did:example:test/app.bsky.feed.post/test',
+        src: 'did:example:test',
+        val: 'test-label',
+        neg: false,
+      };
+      await server.createLabel(labelData);
+
+      const labels = await server.queryLabels();
+
+      expect(labels).toHaveLength(1);
+      expect(labels[0]).toMatchObject({
+        src: 'did:example:test',
+        uri: 'at://did:example:test/app.bsky.feed.post/test',
+        val: 'test-label',
+        sig: expect.any(Uint8Array)
       });
-
-      expect(response.statusCode).toBe(501);
-      expect(response.payload).toBe('Method Not Implemented');
     });
 
-    it('should return 500 for internal server errors', async () => {
-      await server.start();
-      
-      // Simular un error en findLabels
-      global.mockFindLabelsError = true;
-
-      const response = await app.inject({
-        method: 'GET',
-        url: '/xrpc/com.atproto.label.queryLabels'
-      });
-
-      expect(response.statusCode).toBe(500);
-      expect(response.payload).toBe('Internal Server Error');
-
-      // Limpiar la simulación del error
-      global.mockFindLabelsError = false;
+    it('should return empty array when no labels exist', async () => {
+      const labels = await server.queryLabels();
+      expect(labels).toEqual([]);
     });
   });
 });

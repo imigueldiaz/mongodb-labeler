@@ -1,11 +1,10 @@
 {
 	"name": "@imigueldiaz/mongodb-labeler",
 	"type": "module",
-	"description": "A MongoDB labeler and data management tool",
+	"description": "A MongoDB-based labeling system for content moderation with cryptographic signing",
 	"version": "0.1.0",
 	"main": "dist/index.js",
 	"types": "dist/index.d.ts",
-	"bin": "dist/bin.js",
 	"license": "MIT",
 	"repository": "https://github.com/imigueldiaz/mongodb-labeler",
 	"homepage": "https://github.com/imigueldiaz/mongodb-labeler#readme",
@@ -14,8 +13,6 @@
 		"labeler",
 		"data-management",
 		"database",
-		"atproto",
-		"bluesky",
 		"content-moderation",
 		"data-labeling",
 		"classification"
@@ -30,13 +27,13 @@
 		"test:coverage": "jest --config jest.config.cjs --coverage"
 	},
 	"exports": {
-		".": "./dist/index.js",
-		"./scripts": "./dist/scripts/index.js"
+		".": "./dist/index.js"
 	},
 	"devDependencies": {
+		"@atproto/common": "^0.4.4",
+		"@atproto/xrpc": "^0.6.4",
 		"@types/jest": "^29.5.12",
 		"@types/node": "^20.17.6",
-		"@types/prompts": "^2.4.9",
 		"@types/supertest": "^6.0.2",
 		"@types/ws": "^8.5.13",
 		"@typescript-eslint/eslint-plugin": "^6.7.4",
@@ -48,19 +45,14 @@
 		"supertest": "^6.3.4",
 		"ts-jest": "^29.1.2",
 		"ts-jest-resolver": "^2.0.1",
-		"typescript": "^5.2.2",
-		"uint8arrays": "^5.1.0"
+		"typescript": "^5.2.2"
 	},
 	"dependencies": {
-		"@atproto/api": "^0.9.8",
-		"@atproto/common": "^0.4.4",
-		"@atproto/identity": "^0.4.3",
-		"@atproto/xrpc": "^0.4.3",
+		"@atproto/crypto": "^0.4.2",
 		"@fastify/websocket": "^8.3.1",
-		"@noble/curves": "^1.6.0",
-		"@noble/hashes": "^1.5.0",
 		"fastify": "^4.26.1",
 		"mongodb": "^6.3.0",
+		"uint8arrays": "^5.1.0",
 		"ws": "^8.16.0"
 	},
 	"files": [

@@ -1,4 +1,4 @@
-import type { CreateLabelData, SavedLabel } from "../util/types.js";
+import type { SavedLabel } from "../util/types.js";
 
 export class MongoDBClient {
   private labels: SavedLabel[] = [];
@@ -17,11 +17,10 @@ export class MongoDBClient {
   }
 
   // eslint-disable-next-line @typescript-eslint/require-await
-  async saveLabel(label: CreateLabelData): Promise<SavedLabel> {
+  async saveLabel(label: SavedLabel): Promise<SavedLabel> {
     const savedLabel = {
       ...label,
-      id: this.nextId++,
-      sig: new Uint8Array(64)
+      id: this.nextId++
     };
     this.labels.push(savedLabel);
     return savedLabel;

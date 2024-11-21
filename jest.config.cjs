@@ -1,6 +1,6 @@
 /** @type {import('jest').Config} */
 module.exports = {
-  preset: 'ts-jest',
+  preset: 'ts-jest/presets/default-esm',
   testEnvironment: 'node',
   transform: {
     '^.+\\.tsx?$': ['ts-jest', {
@@ -10,7 +10,8 @@ module.exports = {
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
   },
-  setupFilesAfterEnv: ['./jest.setup.js'],
+  setupFilesAfterEnv: ['./jest.setup.ts'],
   extensionsToTreatAsEsm: ['.ts'],
   resolver: 'ts-jest-resolver',
+  testPathIgnorePatterns: ['/node_modules/', '\\.d\\.ts$']
 };

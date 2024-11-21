@@ -1,24 +1,38 @@
+# Logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+*.log
 
+# Process files
 pids
 _.pid
 _.seed
 *.pid.lock
 .DS_Store
 
+# Dependencies
 node_modules/
 
+# TypeScript
 *.tsbuildinfo
+dist/
+
+# Cache
 .npm
 .eslintcache
 
+# Environment variables
 .env
 .env.*
 
+# IDE
 .idea/
 .vscode/
 
-dist/
+# Test coverage
+coverage/
+
+# Local development
+*.local
