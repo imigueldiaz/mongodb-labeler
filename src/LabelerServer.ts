@@ -122,7 +122,7 @@ export class LabelerServer {
 		if (labels.length !== 1) {
 			return null;
 		}
-		const labelToDelete: UnsignedLabel = { ...labels[0], neg: true};
+		const labelToDelete: UnsignedLabel = { ...labels[0], neg: true };
 		const sig = await this.signer.sign(Buffer.from(JSON.stringify(labelToDelete)));
 		const signedlabelToDelete: SignedLabel = { ...labelToDelete, sig };
 		await this.db.saveLabel(signedlabelToDelete);
@@ -148,7 +148,7 @@ export class LabelerServer {
 		if (labels.length !== 1) {
 			return null;
 		}
-		const labelToReverse: UnsignedLabel = { ...labels[0], neg: !labels[0].neg};
+		const labelToReverse: UnsignedLabel = { ...labels[0], neg: !labels[0].neg };
 		const sig = await this.signer.sign(Buffer.from(JSON.stringify(labelToReverse)));
 		const signedlabelToDelete: SignedLabel = { ...labelToReverse, sig };
 		if (save) {
