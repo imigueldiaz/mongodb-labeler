@@ -1,6 +1,6 @@
 declare global {
-  var mockFindLabelsError: boolean;
-  var mockLabels: Array<{
+  const mockFindLabelsError: boolean;
+  const mockLabels: Array<{
     src: string;
     uri: string;
     val: string;

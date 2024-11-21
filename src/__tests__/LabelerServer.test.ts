@@ -2,11 +2,9 @@
 jest.mock('../mongodb');
 
 import { LabelerServer } from '../LabelerServer';
-import { MongoDBClient } from '../mongodb';
 
 describe('LabelerServer', () => {
   let server: LabelerServer;
-  let mockDb: MongoDBClient;
 
   beforeEach(() => {
     server = new LabelerServer({
@@ -15,7 +13,6 @@ describe('LabelerServer', () => {
       mongoUri: 'mongodb://mock',
       port: 4100
     });
-    mockDb = (server as any).db;
   });
 
   afterEach(async () => {

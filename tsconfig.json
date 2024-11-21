@@ -1,7 +1,7 @@
 {
 	"compilerOptions": {
-		"target": "ES2022",
-		"module": "ES2022",
+		"target": "ES2020",
+		"module": "ES2020",
 		"moduleResolution": "node",
 		"esModuleInterop": true,
 		"declaration": true,
@@ -14,9 +14,11 @@
 	},
 	"include": [
 		"src/**/*.ts",
-		"src/**/__tests__/**/*.ts"
+		"src/**/__tests__/**/*.ts",
+		"jest.setup.ts"
 	],
 	"exclude": [
-		"node_modules"
+		"node_modules",
+		"dist"
 	]
 }

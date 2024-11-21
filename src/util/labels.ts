@@ -1,7 +1,4 @@
-import { default as cbor } from '@atproto/common/lib/cbor';
-import { base64ToBytes } from '@atproto/common';
-import { AppBskyActorDefs } from '@atproto/api';
-import { secp256k1 } from '@atproto/crypto';
+import { Secp256k1Keypair } from '@atproto/crypto';
 import type { FormattedLabel, SignedLabel, UnsignedLabel } from "./types.js";
 import { excludeNullish } from "./util.js";
 
@@ -23,10 +20,10 @@ export function formatLabel(
   return excludeNullish({ ...label, ver: LABEL_VERSION, neg: !!label.neg, sig });
 }
 
-export function signLabel(label: UnsignedLabel, signingKey: Uint8Array): SignedLabel {
+export async function signLabel(label: UnsignedLabel, signingKey: Uint8Array): Promise<SignedLabel> {
   const toSign = formatLabelCbor(label);
-  const bytes = cbor.encode(toSign);
-  const sig = secp256k1.sign(bytes, signingKey);
+  const keypair = new Secp256k1Keypair(signingKey, false);
+  const sig = await keypair.sign(Buffer.from(JSON.stringify(toSign)));
   return { ...toSign, sig };
 }
 

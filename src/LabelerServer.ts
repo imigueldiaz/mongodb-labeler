@@ -4,7 +4,6 @@ import {
     CreateLabelData,
     UnsignedLabel,
     SignedLabel,
-    SavedLabel,
 } from "./util/types.js";
 
 export interface LabelerOptions {
@@ -26,7 +25,7 @@ export class LabelerServer {
         this.did = options.did;
         
         // Initialize the signer
-        Secp256k1Keypair.import(options.signingKey).then(keypair => {
+        void Secp256k1Keypair.import(options.signingKey).then(keypair => {
             this.signer = keypair;
         });
     }
