@@ -8,6 +8,10 @@
 [![AT Protocol](https://img.shields.io/badge/AT_Protocol-compatible-blue)](https://atproto.com/)
 [![MongoDB](https://img.shields.io/badge/MongoDB-%234ea94b.svg?logo=mongodb&logoColor=white)](https://www.mongodb.com/)
 
+<p align="center">
+  <img src="assets/logo.svg" width="400" alt="MongoDB Labeler Logo">
+</p>
+
 A versatile data management and labeling tool that helps you organize, tag, and manage your MongoDB collections efficiently. Originally inspired by ATProtocol's labeling system, it can be used both for general MongoDB data labeling and ATProtocol content moderation.
 
 ## Acknowledgments

@@ -1,0 +1,30 @@
+<svg viewBox="0 0 400 200" xmlns="http://www.w3.org/2000/svg">
+  <!-- Fondo circular que representa MongoDB -->
+  <circle cx="160" cy="100" r="90" fill="#4DB33D" opacity="0.1"></circle>
+  
+  <!-- Símbolo de base de datos -->
+  <path d="M100 40 C140 40 140 60 140 80 V120 C140 140 140 160 100 160 C60 160 60 140 60 120 V80 C60 60 60 40 100 40Z" fill="#4DB33D" stroke="#2F9A2F" stroke-width="4" data-index="0" style="opacity: 1;"></path>
+  
+  <!-- Elipses decorativas para el cilindro de la base de datos -->
+  <ellipse cx="100" cy="80" rx="40" ry="15" fill="none" stroke="#2F9A2F" stroke-width="4"></ellipse>
+  
+  <!-- Etiqueta con forma de @ -->
+  <path d="M85 90 
+           A25 25 0 1 1 135 90
+           L135 130 
+           L110 145 
+           L85 130 Z" fill="#ffffff" stroke="#2F9A2F" stroke-width="3" data-index="1" style="opacity: 1;"></path>
+  
+  <!-- Agujero de la etiqueta -->
+  <circle cx="110" cy="105" r="5" fill="#2F9A2F"></circle>
+
+  <!-- Texto "MongoDB" estilo terminal/código -->
+  <text x="180" y="90" font-family="Monaco, Consolas, monospace" font-size="32" fill="#2F9A2F">
+    MongoDB
+  </text>
+  
+  <!-- Texto "L@beler" con estilo más amigable -->
+  <text x="180" y="130" font-family="Arial, sans-serif" font-size="36" fill="#2F9A2F" font-weight="bold">
+    L@beler
+  </text>
+</svg>
