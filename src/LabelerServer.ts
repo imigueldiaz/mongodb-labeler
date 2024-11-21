@@ -31,10 +31,10 @@ export class LabelerServer {
 	}
 
 	async createLabel(data: CreateLabelData): Promise<SignedLabel> {
-		const unsignedLabel: UnsignedLabel = { 
-			...data, 
+		const unsignedLabel: UnsignedLabel = {
+			...data,
 			cts: new Date().toISOString(),
-			src: data.src || this.did 
+			src: data.src || this.did,
 		};
 
 		const sig = await this.signer.sign(Buffer.from(JSON.stringify(unsignedLabel)));
