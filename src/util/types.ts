@@ -1,4 +1,4 @@
-import { At, ComAtprotoLabelDefs } from "@atcute/client/lexicons";
+import { At, ComAtprotoLabelDefs } from "@atcute/client/lib/lexicons";
 import type { WebsocketHandler } from "@fastify/websocket";
 import type {
 	RawReplyDefaultExpression,
@@ -29,8 +29,8 @@ export interface CreateLabelData {
 	cid?: string | undefined;
 	/** Whether this label is negating a previous instance of this label applied to the same subject. */
 	neg?: boolean | undefined;
-	/** The DID of the actor who created this label, if different from the labeler. */
-	src?: string | undefined;
+	/** The DID of the actor who created this label, if different from the labeler. Must start with 'did:'. */
+	src?: `did:${string}`;
 	/** The creation date of the label. Must be in ISO 8601 format. */
 	cts?: string | undefined;
 	/** The expiration date of the label, if any. Must be in ISO 8601 format. */

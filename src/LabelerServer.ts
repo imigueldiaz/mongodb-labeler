@@ -1,62 +1,51 @@
+import { Secp256k1Keypair } from "@atproto/crypto";
 import { MongoDBClient } from "./mongodb.js";
-import { Secp256k1Keypair } from '@atproto/crypto';
-import {
-    CreateLabelData,
-    UnsignedLabel,
-    SignedLabel,
-} from "./util/types.js";
+import { CreateLabelData, SignedLabel, UnsignedLabel } from "./util/types.js";
 
 export interface LabelerOptions {
-    did: string;
-    signingKey: string;
-    mongoUri: string;
-    databaseName?: string;
-    collectionName?: string;
-    port?: number;
+	did: `did:${string}`;
+	signingKey: string;
+	mongoUri: string;
+	databaseName?: string;
+	collectionName?: string;
+	port?: number;
 }
 
 export class LabelerServer {
-    private db: MongoDBClient;
-    private did: string;
-    private signer!: Secp256k1Keypair;
+	private db: MongoDBClient;
+	private did: `did:${string}`;
+	private signer!: Secp256k1Keypair;
 
-    constructor(options: LabelerOptions) {
-        this.db = new MongoDBClient(options.mongoUri, options.databaseName, options.collectionName);
-        this.did = options.did;
-        
-        // Initialize the signer
-        void Secp256k1Keypair.import(options.signingKey).then(keypair => {
-            this.signer = keypair;
-        });
-    }
+	constructor(options: LabelerOptions) {
+		this.db = new MongoDBClient(options.mongoUri, options.databaseName, options.collectionName);
+		this.did = options.did;
 
-    async close() {
-        await this.db.close();
-    }
+		// Initialize the signer
+		void Secp256k1Keypair.import(options.signingKey).then((keypair) => {
+			this.signer = keypair;
+		});
+	}
 
-    async createLabel(data: CreateLabelData): Promise<SignedLabel> {
-        const unsignedLabel: UnsignedLabel = {
-            ...data,
-            cts: new Date().toISOString(),
-        };
+	async close() {
+		await this.db.close();
+	}
 
-        const sig = await this.signer.sign(Buffer.from(JSON.stringify(unsignedLabel)));
-        
-        const signedLabel: SignedLabel = {
-            ...unsignedLabel,
-            sig: sig,
-        };
+	async createLabel(data: CreateLabelData): Promise<SignedLabel> {
+		const unsignedLabel: UnsignedLabel = { 
+			...data, 
+			cts: new Date().toISOString(),
+			src: (data.src || this.did) as `did:${string}` // Assert the type since we know both values are valid DIDs
+		};
 
-        await this.db.saveLabel(signedLabel);
-        return signedLabel;
-    }
+		const sig = await this.signer.sign(Buffer.from(JSON.stringify(unsignedLabel)));
+		const signedLabel: SignedLabel = { ...unsignedLabel, sig: sig };
+		await this.db.saveLabel(signedLabel);
+		return signedLabel;
+	}
 
-    async queryLabels(): Promise<SignedLabel[]> {
-        const labels = await this.db.findLabels({});
-        // Convert ArrayBuffer to Uint8Array for signatures
-        return labels.map(label => ({
-            ...label,
-            sig: new Uint8Array(label.sig)
-        }));
-    }
+	async queryLabels(): Promise<SignedLabel[]> {
+		const labels = await this.db.findLabels({});
+		// Convert ArrayBuffer to Uint8Array for signatures
+		return labels.map((label) => ({ ...label, sig: new Uint8Array(label.sig) }));
+	}
 }

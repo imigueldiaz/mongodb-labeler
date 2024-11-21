@@ -3,7 +3,7 @@ module.exports = {
   preset: 'ts-jest/presets/default-esm',
   testEnvironment: 'node',
   transform: {
-    '^.+\\.tsx?$': ['ts-jest', {
+    '^.+\\.(ts|tsx|js|jsx)$': ['ts-jest', {
       useESM: true,
     }],
   },
@@ -11,7 +11,8 @@ module.exports = {
     '^(\\.{1,2}/.*)\\.js$': '$1',
   },
   setupFilesAfterEnv: ['./jest.setup.ts'],
-  extensionsToTreatAsEsm: ['.ts'],
+  extensionsToTreatAsEsm: ['.ts', '.tsx', '.mts'],
   resolver: 'ts-jest-resolver',
-  testPathIgnorePatterns: ['/node_modules/', '\\.d\\.ts$']
+  testPathIgnorePatterns: ['/node_modules/', '\\.d\\.ts$', '/dist/'],
+  roots: ['<rootDir>/src']
 };
