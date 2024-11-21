@@ -1,5 +1,3 @@
-// Transform ESM modules
-require('ts-jest').default;
 
 // Mock ESM modules that are causing issues
 jest.mock('@atproto/xrpc', () => ({

@@ -38,6 +38,7 @@
 		"@types/ws": "^8.5.13",
 		"@typescript-eslint/eslint-plugin": "^6.7.4",
 		"@typescript-eslint/parser": "^6.7.4",
+		"@typescript-eslint/typescript-estree": "^8.15.0",
 		"dprint": "^0.41.0",
 		"eslint": "^8.50.0",
 		"jest": "^29.7.0",
