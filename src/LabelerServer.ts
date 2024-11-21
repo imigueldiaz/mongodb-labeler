@@ -118,23 +118,37 @@ export class LabelerServer {
 	 * @param id - The ID of the label to delete.
 	 */
 	async deleteLabel(id: number): Promise<SignedLabel | null> {
-		let labels = await this.db.findLabels({ id });
+		const labels = await this.db.findLabels({ id });
 		if (labels.length !== 1) {
 			return null;
 		}
-		let labelToDelete: UnsignedLabel = { ...labels[0], neg: true};
+		const labelToDelete: UnsignedLabel = { ...labels[0], neg: true};
 		const sig = await this.signer.sign(Buffer.from(JSON.stringify(labelToDelete)));
 		const signedlabelToDelete: SignedLabel = { ...labelToDelete, sig };
 		await this.db.saveLabel(signedlabelToDelete);
 		return signedlabelToDelete;
 	}
 
+	/**
+	 * Reverses the negation of a label in the database.
+	 *
+	 * This function first queries the label from the database to verify its existence.
+	 * If the label exists, it creates a new label with the same properties as the original,
+	 * but sets the neg field to the opposite of the original. It then signs the new label.
+	 * If the save parameter is true, it saves the new label to the database. If the label
+	 * does not exist, the function does nothing.
+	 *
+	 * @param id - The ID of the label to reverse the negation of.
+	 * @param save - Whether to save the new label to the database. Defaults to false.
+	 * @returns A promise that resolves to the signed label with the reversed negation if
+	 * the label exists, or null if not.
+	 */
 	async reverseLabelNegation(id: number, save: boolean = false): Promise<SignedLabel | null> {
-		let labels = await this.db.findLabels({ id });
+		const labels = await this.db.findLabels({ id });
 		if (labels.length !== 1) {
 			return null;
 		}
-		let labelToReverse: UnsignedLabel = { ...labels[0], neg: !labels[0].neg};
+		const labelToReverse: UnsignedLabel = { ...labels[0], neg: !labels[0].neg};
 		const sig = await this.signer.sign(Buffer.from(JSON.stringify(labelToReverse)));
 		const signedlabelToDelete: SignedLabel = { ...labelToReverse, sig };
 		if (save) {
