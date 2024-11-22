@@ -70,13 +70,11 @@ class MockMongoDBClientImpl {
     });
   });
 
-  constructor(uri: string, databaseName?: string, collectionName?: string) {
-    // Constructor mock implementation
+  constructor() {
+    // Empty constructor
   }
 }
 
-export const MongoDBClient = jest.fn().mockImplementation(
-  (uri: string, databaseName?: string, collectionName?: string) => {
-    return new MockMongoDBClientImpl(uri, databaseName, collectionName);
-  }
-) as jest.MockedClass<typeof MockMongoDBClientImpl>;
+export const MongoDBClient = jest.fn().mockImplementation(() => {
+  return new MockMongoDBClientImpl();
+}) as jest.MockedClass<typeof MockMongoDBClientImpl>;

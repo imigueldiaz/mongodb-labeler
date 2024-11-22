@@ -207,8 +207,12 @@ describe("LabelerServer", () => {
 			};
 
 			// Expect constructor to throw LabelerServerError
-			expect(() => new LabelerServer(options)).toThrow(LabelerServerError);
-			expect(() => new LabelerServer(options)).toThrow('Invalid server configuration');
+			expect(() => {
+				new LabelerServer(options);
+			}).toThrow(LabelerServerError);
+			expect(() => {
+				new LabelerServer(options);
+			}).toThrow('Invalid server configuration');
 		});
 
 		it('should handle async signer initialization', async () => {
