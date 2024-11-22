@@ -1,43 +1,82 @@
 import type { SavedLabel } from "../util/types.js";
+import type { Filter, FindOptions } from "mongodb";
+import { Binary } from "mongodb";
 
-export class MongoDBClient {
-	private labels: SavedLabel[] = [];
-	private nextId = 1;
+// Mock ObjectId class
+export class ObjectId {
+  _bsontype = "ObjectID";
+  id = Buffer.from("mock-object-id");
 
-	constructor(
-		private mongoUri: string,
-		private databaseName?: string,
-		private collectionName?: string,
-	) {}
+  constructor(id?: string) {
+    if (id) {
+      this.id = Buffer.from(id);
+    }
+  }
 
-	// eslint-disable-next-line @typescript-eslint/require-await
-	async findLabels(
-		_query: any,
-		options?: { sort?: any; skip?: number; limit?: number },
-	): Promise<SavedLabel[]> {
-		const { skip = 0, limit = 50 } = options ?? {};
-		return this.labels.slice(skip, skip + limit);
-	}
+  toHexString() {
+    return this.id.toString("hex");
+  }
 
-	// eslint-disable-next-line @typescript-eslint/require-await
-	async saveLabel(label: SavedLabel): Promise<SavedLabel> {
-		const savedLabel = { ...label, id: this.nextId++ };
-		this.labels.push(savedLabel);
-		return savedLabel;
-	}
+  toString() {
+    return this.toHexString();
+  }
 
-	// eslint-disable-next-line @typescript-eslint/require-await
-	async getLabelsAfterCursor(cursor: number, limit: number): Promise<SavedLabel[]> {
-		return this.labels.filter((l) => l.id > cursor).slice(0, limit);
-	}
+  toJSON() {
+    return this.toHexString();
+  }
 
-	// eslint-disable-next-line @typescript-eslint/require-await
-	async connect(): Promise<void> {
-		// Mock implementation
-	}
+  equals(otherId: ObjectId) {
+    return this.id.equals(otherId.id);
+  }
 
-	// eslint-disable-next-line @typescript-eslint/require-await
-	async close(): Promise<void> {
-		// Mock implementation
-	}
+  getTimestamp() {
+    return new Date();
+  }
 }
+
+type MongoSavedLabel = Omit<SavedLabel, 'sig'> & {
+  _id: ObjectId;
+  sig: Binary;
+};
+
+class MockMongoDBClientImpl {
+  private mockData: MongoSavedLabel[] = [];
+
+  connect = jest.fn().mockResolvedValue(undefined);
+  close = jest.fn().mockResolvedValue(undefined);
+  
+  findLabels = jest.fn().mockImplementation(() => {
+    // Convert Binary to ArrayBuffer when returning
+    return Promise.resolve(
+      this.mockData.map(label => ({
+        ...label,
+        sig: label.sig.buffer
+      }))
+    );
+  });
+
+  saveLabel = jest.fn().mockImplementation((label: SavedLabel) => {
+    // Convert ArrayBuffer to Binary when saving
+    const savedLabel: MongoSavedLabel = {
+      ...label,
+      _id: new ObjectId(),
+      sig: new Binary(Buffer.from(label.sig))
+    };
+    this.mockData.push(savedLabel);
+    // Convert back to ArrayBuffer when returning
+    return Promise.resolve({
+      ...savedLabel,
+      sig: savedLabel.sig.buffer
+    });
+  });
+
+  constructor(uri: string, databaseName?: string, collectionName?: string) {
+    // Constructor mock implementation
+  }
+}
+
+export const MongoDBClient = jest.fn().mockImplementation(
+  (uri: string, databaseName?: string, collectionName?: string) => {
+    return new MockMongoDBClientImpl(uri, databaseName, collectionName);
+  }
+) as jest.MockedClass<typeof MockMongoDBClientImpl>;
