@@ -1,5 +1,4 @@
 import type { SavedLabel } from "../util/types.js";
-import type { Filter, FindOptions } from "mongodb";
 import { Binary } from "mongodb";
 
 // Mock ObjectId class
@@ -56,23 +55,17 @@ class MockMongoDBClientImpl {
   });
 
   saveLabel = jest.fn().mockImplementation((label: SavedLabel) => {
-    // Convert ArrayBuffer to Binary when saving
-    const savedLabel: MongoSavedLabel = {
+    const mongoLabel: MongoSavedLabel = {
       ...label,
       _id: new ObjectId(),
       sig: new Binary(Buffer.from(label.sig))
     };
-    this.mockData.push(savedLabel);
-    // Convert back to ArrayBuffer when returning
+    this.mockData.push(mongoLabel);
     return Promise.resolve({
-      ...savedLabel,
-      sig: savedLabel.sig.buffer
+      ...mongoLabel,
+      sig: mongoLabel.sig.buffer
     });
   });
-
-  constructor() {
-    // Empty constructor
-  }
 }
 
 export const MongoDBClient = jest.fn().mockImplementation(() => {
