@@ -47,25 +47,43 @@ export interface LabelerOptions {
  */
 export class LabelerServer {
     private _db: MongoDBClient;
-	public get db(): MongoDBClient {
-		return this._db;
-	}
+    public get db(): MongoDBClient {
+        return this._db;
+    }
 
     private _did: `did:${string}`;
-	public get did(): `did:${string}` {
-		return this._did;
-	}
+    public get did(): `did:${string}` {
+        return this._did;
+    }
 
     private _signer!: Secp256k1Keypair;
-	public get signer(): Secp256k1Keypair {
-		return this._signer;
-	}
-	private set signer(value: Secp256k1Keypair) {
-		this._signer = value;
-	}
+    public get signer(): Secp256k1Keypair {
+        return this._signer;
+    }
+    private set signer(value: Secp256k1Keypair) {
+        this._signer = value;
+    }
+
+    private _initializeSigner: Promise<void>;
+    private _initializationError?: Error;
+
+    /**
+     * Returns the initialization promise for testing purposes
+     */
+    public getInitializationPromise(): Promise<void> {
+        return this._initializeSigner;
+    }
 
     constructor(options: LabelerOptions) {
         try {
+            // Validate required parameters
+            if (!options.signingKey) {
+                throw new LabelerServerError('Missing required parameter: signingKey');
+            }
+            if (!options.mongoUri) {
+                throw new LabelerServerError('Missing required parameter: mongoUri');
+            }
+
             // Validate the server's DID from the start
             validateDid(options.did);
 
@@ -73,10 +91,12 @@ export class LabelerServer {
             this._did = options.did;
 
             // Initialize the signer
-            void Secp256k1Keypair.import(options.signingKey).then((keypair) => {
+            this._initializeSigner = Secp256k1Keypair.import(options.signingKey).then((keypair) => {
                 this._signer = keypair;
             }).catch((error) => {
-                throw new LabelerServerError(`Failed to initialize signer: ${error.message}`, error);
+                this._initializationError = error;
+                const errorMessage = typeof error === 'string' ? error : error.message;
+                throw new LabelerServerError(`Failed to initialize signer: ${errorMessage}`, error instanceof Error ? error : undefined);
             });
         } catch (error) {
             if (error instanceof AtProtocolValidationError) {
@@ -178,7 +198,7 @@ export class LabelerServer {
         try {
             const labels = await this.db.findLabels({ id });
             if (labels.length === 0) return null;
-            
+
             // Convert ArrayBuffer to Uint8Array for signatures
             return { ...labels[0], sig: new Uint8Array(labels[0].sig) };
         } catch (error) {

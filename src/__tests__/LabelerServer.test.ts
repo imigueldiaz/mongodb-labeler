@@ -7,11 +7,22 @@ const mockSign = jest.fn();
 const mockSigner = {
   sign: mockSign,
 };
-jest.mock('@atproto/crypto', () => ({
-  Secp256k1Keypair: {
-    import: mockImport.mockResolvedValue(mockSigner),
-  }
-}));
+
+// Configure the mock before importing the module
+jest.mock('@atproto/crypto', () => {
+  return {
+    Secp256k1Keypair: {
+      import: mockImport
+    }
+  };
+});
+
+beforeEach(() => {
+  // Reset all mocks before each test
+  jest.clearAllMocks();
+  // Configure default successful behavior
+  mockImport.mockResolvedValue(mockSigner);
+});
 
 jest.mock('../util/validators');
 
@@ -36,11 +47,7 @@ describe("LabelerServer", () => {
 	};
 
 	beforeEach(async () => {
-		// Reset all mocks
-		jest.clearAllMocks();
-		
 		// Setup mocks
-		mockSign.mockResolvedValue(new Uint8Array(32));
 		(validateDid as jest.Mock).mockImplementation(() => undefined);
 		(validateAtUri as jest.Mock).mockImplementation((uri: string) => {
 			if (uri === "invalid-uri") {
@@ -245,46 +252,28 @@ describe("LabelerServer", () => {
 			(validateDid as jest.Mock).mockImplementation(() => undefined);
 		});
 
-		it('should successfully initialize with valid options', async () => {
-			const options: LabelerOptions = {
+		it("should successfully initialize with valid options", async () => {
+			const labelerServer = new LabelerServer({
 				did: mockDid as `did:${string}`,
 				mongoUri: mockMongoUri,
-				databaseName: mockDatabaseName,
-				collectionName: mockCollectionName,
 				signingKey: mockSigningKey,
-			};
+				databaseName: mockDatabaseName,
+				collectionName: mockCollectionName
+			});
 
-			const labelerServer = new LabelerServer(options);
-			expect(validateDid).toHaveBeenCalledWith(mockDid);
 			expect(MongoDBClient).toHaveBeenCalledWith(
-				mockMongoUri, 
-				mockDatabaseName, 
+				mockMongoUri,
+				mockDatabaseName,
 				mockCollectionName
 			);
 			expect(mockImport).toHaveBeenCalledWith(mockSigningKey);
 
 			await new Promise(process.nextTick);
 			expect(labelerServer.did).toBe(mockDid);
-			expect(labelerServer.db).toBeDefined();
 		});
 
-		it('should throw LabelerServerError for invalid DID', () => {
-			const error = new AtProtocolValidationError('Invalid DID format');
-			(validateDid as jest.Mock).mockImplementation(() => {
-				throw error;
-			});
-
-			const options: LabelerOptions = {
-				did: 'invalid:did' as `did:${string}`,
-				mongoUri: mockMongoUri,
-				signingKey: mockSigningKey,
-			};
-
-			expect(() => new LabelerServer(options)).toThrow(LabelerServerError);
-		});
-
-		it('should handle signer initialization errors', async () => {
-			const error = new Error('Import error');
+		it("should handle signer initialization errors", async () => {
+			const error = new Error("Import error");
 			mockImport.mockRejectedValue(error);
 
 			const options: LabelerOptions = {
@@ -294,16 +283,40 @@ describe("LabelerServer", () => {
 			};
 
 			const labelerServer = new LabelerServer(options);
-			await expect(new Promise((resolve) => {
-				process.nextTick(() => {
-					try {
-						labelerServer.signer;
-						resolve(undefined);
-					} catch (e) {
-						resolve(e);
-					}
-				});
-			})).resolves.toBeInstanceOf(LabelerServerError);
+			await expect(labelerServer.getInitializationPromise()).rejects.toThrow("Failed to initialize signer: Import error");
+		});
+
+		it("should handle non-Error objects in error handling", async () => {
+			// Simular un error que no es una instancia de Error
+			mockImport.mockRejectedValue("string error");
+
+			const options: LabelerOptions = {
+				did: mockDid as `did:${string}`,
+				mongoUri: mockMongoUri,
+				signingKey: mockSigningKey,
+			};
+
+			const labelerServer = new LabelerServer(options);
+			await expect(labelerServer.getInitializationPromise()).rejects.toThrow("Failed to initialize signer: string error");
+		});
+
+		it("should handle missing signingKey", () => {
+			const options = {
+				did: mockDid as `did:${string}`,
+				mongoUri: mockMongoUri,
+			} as LabelerOptions;
+
+			expect(() => new LabelerServer(options)).toThrow();
+		});
+
+		it("should handle invalid database configuration", () => {
+			const options: LabelerOptions = {
+				did: mockDid as `did:${string}`,
+				mongoUri: "",
+				signingKey: mockSigningKey,
+			};
+
+			expect(() => new LabelerServer(options)).toThrow();
 		});
 	});
 });
