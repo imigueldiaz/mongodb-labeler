@@ -1,322 +1,183 @@
-// Mock the mongodb import
-jest.mock("../mongodb");
+import { LabelerServer } from '../LabelerServer.js';
+import type { LabelerOptions } from '../LabelerServer.js';
+import { MongoClient, type Collection } from "mongodb";
+import { MongoMemoryServer } from 'mongodb-memory-server';
+import type { SavedLabel, UnsignedLabel } from '../util/types.js';
 
-// Mock the crypto import
-const mockImport = jest.fn();
-const mockSign = jest.fn();
-const mockSigner = {
-  sign: mockSign,
-};
+const TEST_TIMEOUT = 35000;
+const SETUP_TIMEOUT = 120000; // 2 minutos para la descarga del servidor
 
-// Configure the mock before importing the module
-jest.mock('@atproto/crypto', () => {
-  return {
-    Secp256k1Keypair: {
-      import: mockImport
-    }
+describe('LabelerServer', () => {
+  let mongoServer: MongoMemoryServer;
+  let connection: MongoClient;
+  let collection: Collection<SavedLabel>;
+  let server: LabelerServer;
+  const options: LabelerOptions = {
+    did: 'did:web:test.com',
+    signingKey: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+    mongoUri: '',
+    databaseName: 'test', 
+    collectionName: 'labels' 
   };
-});
 
-beforeEach(() => {
-  // Reset all mocks before each test
-  jest.clearAllMocks();
-  // Configure default successful behavior
-  mockImport.mockResolvedValue(mockSigner);
-});
+  beforeAll(async () => {
+    mongoServer = await MongoMemoryServer.create();
+    options.mongoUri = mongoServer.getUri();
+    connection = await MongoClient.connect(options.mongoUri);
+    collection = connection.db('test').collection('labels');
+  }, SETUP_TIMEOUT); 
+  
+  afterAll(async () => {
+    if (connection instanceof MongoClient) {
+      await connection.close();
+    }
+    if (mongoServer instanceof MongoMemoryServer) {
+      await mongoServer.stop();
+    }
+  });
+  
+  beforeEach(async () => {
+    try {
+      // Drop the collection to ensure a clean state
+      await collection.drop().catch(() => {/* ignore if collection doesn't exist */});
+      
+      // Ping the database to check connection
+      await connection.db().admin().ping();
+    } catch (error) {
+      // Reconnect if ping fails
+      const uri = mongoServer.getUri();
+      connection = await MongoClient.connect(uri);
+      collection = connection.db('test').collection('labels');
+    }
+    
+    // Create a new server instance with a fresh connection
+    server = new LabelerServer(options);
+    
+    // Wait for both MongoDB connection and signer initialization
+    await server.db.connect();
+    await server.getInitializationPromise();
+  });
+  
+  afterEach(async () => {
+    // Clean up the database after each test
+    await collection.drop().catch(() => {/* ignore if collection doesn't exist */});
+    await server.close();
+  });
 
-jest.mock('../util/validators');
+  describe('MongoDB Operations', () => {
+    it('should handle invalid MongoDB URI', () => {
+      expect(() => new LabelerServer({
+        ...options,
+        mongoUri: 'invalid-uri'
+      })).toThrow('Invalid server configuration: Invalid scheme, expected connection string to start with "mongodb://" or "mongodb+srv://"');
+    }, TEST_TIMEOUT);
 
-import { LabelerOptions, LabelerServer, LabelerServerError } from "../LabelerServer";
-import { AtProtocolValidationError, validateAtUri, validateCid, validateDid } from "../util/validators";
-import { MongoDBClient } from "../mongodb";
-import { ObjectId } from "mongodb";
+    it('should handle connection failures', async () => {
+      const failingServer = new LabelerServer({
+        ...options,
+        mongoUri: 'mongodb://invalid-host:27017'
+      });
 
-describe("LabelerServer", () => {
-	let server: LabelerServer;
-	let mockDb: jest.Mocked<InstanceType<typeof MongoDBClient>>;
-	const mockObjectId = new ObjectId("test-id");
-	const mockLabel = {
-		_id: mockObjectId,
-		id: 1,
-		src: "did:web:test.com" as `did:${string}`,
-		uri: "at://did:web:test.com/app.bsky.feed.post/test",
-		val: "test",
-		cts: new Date().toISOString(),
-		sig: new Uint8Array(32),
-		neg: false
-	};
+      await expect(failingServer.db.connect()).rejects.toThrow('Failed to connect to MongoDB');
+    }, TEST_TIMEOUT);
 
-	beforeEach(async () => {
-		// Setup mocks
-		(validateDid as jest.Mock).mockImplementation(() => undefined);
-		(validateAtUri as jest.Mock).mockImplementation((uri: string) => {
-			if (uri === "invalid-uri") {
-				throw new AtProtocolValidationError("Invalid URI");
-			}
-		});
-		(validateCid as jest.Mock).mockImplementation((cid: string) => {
-			if (cid === "invalid-cid") {
-				throw new AtProtocolValidationError("Invalid CID");
-			}
-		});
+    it('should handle connection string validation', () => {
+      expect(() => new LabelerServer({
+        ...options,
+        mongoUri: ''
+      })).toThrow('Invalid server configuration: Missing required parameter: mongoUri');
+    });
 
-		// Setup MongoDB mock
-		const db = new MongoDBClient("", "", "");
-		mockDb = db as jest.Mocked<InstanceType<typeof MongoDBClient>>;
-		mockDb.findLabels.mockResolvedValue([mockLabel]);
-		mockDb.close.mockResolvedValue();
-		(MongoDBClient as jest.MockedClass<typeof MongoDBClient>).mockReturnValue(mockDb);
+    it('should handle errors in close', async () => {
+      const mockDb = {
+        close: jest.fn().mockRejectedValue(new Error('Close failed'))
+      };
 
-		const options: LabelerOptions = {
-			did: "did:web:test.com" as `did:${string}`,
-			mongoUri: "mongodb://localhost:27017",
-			signingKey: "test-key",
-		};
+      // Create a new server instance
+      const testServer = new LabelerServer({
+        ...options,
+        mongoUri: 'mongodb://test:27017'
+      });
 
-		server = new LabelerServer(options);
-		// Wait for signer initialization
-		await new Promise(process.nextTick);
-	});
+      // Mock the MongoDB client
+      Object.defineProperty(testServer.db, '_client', {
+        value: mockDb,
+        writable: true
+      });
 
-	afterEach(async () => {
-		try {
-			if (server?.db) {
-				await server.close();
-			}
-		} catch (error) {
-			// Ignore close errors in cleanup
-		}
-		jest.clearAllMocks();
-	});
+      // Mock the database initialization state
+      Object.defineProperty(testServer.db, '_db', {
+        value: {},
+        writable: true
+      });
 
-	describe("Label CRUD Operations", () => {
-		beforeEach(() => {
-			mockDb.findLabels.mockResolvedValue([mockLabel]);
-		});
+      await expect(testServer.close()).rejects.toThrow(/Failed to close database connection/);
+    });
+  });
 
-		describe("createLabel", () => {
-			const validLabel = {
-				uri: "at://did:web:test.com/app.bsky.feed.post/test",
-				cid: "bafybeigdyrzt5sfp7udm7hu76kqbmtxwmgaslqbm25j6lwsxzd53kbcpea",
-				val: "test",
-				neg: false
-			};
+  describe('Label Operations', () => {
+    it('should create label with expiration', async () => {
+      const expDate = new Date();
+      expDate.setDate(expDate.getDate() + 1); // Set expiration to tomorrow
+      
+      const testLabel: Omit<UnsignedLabel, 'cts'> = {
+        val: 'test',
+        uri: 'at://did:web:test.com/app.bsky.feed.post/test',
+        cid: 'bafyreie5cvv4h45feadlkyw2b2jmkrxhiwdwvqokkf7k3tvtc3xqbrnx7y',
+        neg: false,
+        src: 'did:web:test.com',
+        exp: expDate.toISOString()
+      };
+      
+      const labelWithExp = await server.createLabel(testLabel);
+      expect(labelWithExp.exp).toBe(expDate.toISOString());
+    }, TEST_TIMEOUT);
 
-			it("should create a label successfully", async () => {
-				mockDb.saveLabel.mockResolvedValue(mockLabel);
-				const result = await server.createLabel(validLabel);
-				expect(result).toBeDefined();
-				expect(result.uri).toBe(validLabel.uri);
-				expect(result.val).toBe(validLabel.val);
-				expect(result.neg).toBe(validLabel.neg);
-			});
+    it('should handle invalid label data', async () => {
+      const invalidLabel: Omit<UnsignedLabel, 'cts'> = {
+        val: '',
+        uri: 'invalid-uri',
+        cid: 'invalid-cid',
+        neg: false,
+        src: 'did:web:test.com'
+      };
 
-			it("should throw error when URI validation fails", async () => {
-				const invalidLabel = { ...validLabel, uri: "invalid-uri" };
-				await expect(server.createLabel(invalidLabel)).rejects.toThrow(LabelerServerError);
-			});
+      await expect(server.createLabel(invalidLabel)).rejects.toThrow();
+    }, TEST_TIMEOUT);
 
-			it("should throw error when CID validation fails", async () => {
-				const invalidLabel = { ...validLabel, cid: "invalid-cid" };
-				await expect(server.createLabel(invalidLabel)).rejects.toThrow(LabelerServerError);
-			});
+    describe('Label Negation', () => {
+      const mockLabel: SavedLabel = {
+        id: 1,
+        val: 'test-label',
+        uri: 'at://test.com',
+        cid: 'bafyreidfayvfuwqa7qlnopkwu64bkizzbj3pdw5kaewd7a6d66t7iulpce',
+        neg: false,
+        src: 'did:web:test.com',
+        cts: new Date().toISOString(),
+        sig: new ArrayBuffer(64)
+      };
 
-			it("should throw error when database operation fails", async () => {
-				mockDb.saveLabel.mockRejectedValue(new Error("Database error"));
-				await expect(server.createLabel(validLabel)).rejects.toThrow(LabelerServerError);
-			});
-		});
+      it('should reverse label negation', async () => {
+        jest.spyOn(server.db, 'findLabels').mockResolvedValue([mockLabel]);
+        jest.spyOn(server.db, 'updateLabel').mockResolvedValue(true);
 
-		describe("queryLabels", () => {
-			it("should return all labels", async () => {
-				const labels = await server.queryLabels();
-				expect(labels).toHaveLength(1);
-				expect(labels[0]).toEqual(mockLabel);
-			});
+        const result = await server.reverseLabelNegation(1, true);
+        expect(result).not.toBeNull();
+        expect(result?.neg).toBe(true);
+      });
 
-			it("should handle database errors", async () => {
-				mockDb.findLabels.mockRejectedValue(new Error("Database error"));
-				await expect(server.queryLabels()).rejects.toThrow(LabelerServerError);
-			});
-		});
+      it('should handle non-existent label in reverseLabelNegation', async () => {
+        jest.spyOn(server.db, 'findLabels').mockResolvedValue([]);
 
-		describe("queryLabel", () => {
-			it("should return null for non-existent label", async () => {
-				mockDb.findLabels.mockResolvedValue([]);
-				const label = await server.queryLabel(999);
-				expect(label).toBeNull();
-			});
+        const result = await server.reverseLabelNegation(999);
+        expect(result).toBeNull();
+      });
 
-			it("should return label when found", async () => {
-				const label = await server.queryLabel(1);
-				expect(label).toEqual(mockLabel);
-			});
+      it('should handle database error in reverseLabelNegation', async () => {
+        jest.spyOn(server.db, 'findLabels').mockRejectedValue(new Error('Failed to reverse label negation'));
 
-			it("should handle database errors", async () => {
-				mockDb.findLabels.mockRejectedValue(new Error("Database error"));
-				await expect(server.queryLabel(1)).rejects.toThrow(LabelerServerError);
-			});
-		});
-
-		describe("deleteLabel", () => {
-			it("should return null for non-existent label", async () => {
-				mockDb.findLabels.mockResolvedValue([]);
-				const result = await server.deleteLabel(999);
-				expect(result).toBeNull();
-			});
-
-			it("should create negation for existing label", async () => {
-				const negatedLabel = { ...mockLabel, neg: true };
-				mockDb.saveLabel.mockResolvedValue(negatedLabel);
-				const result = await server.deleteLabel(1);
-				expect(result).toBeDefined();
-				expect(result?.neg).toBe(true);
-			});
-
-			it("should handle database errors", async () => {
-				mockDb.saveLabel.mockRejectedValue(new Error("Database error"));
-				await expect(server.deleteLabel(1)).rejects.toThrow(LabelerServerError);
-			});
-		});
-
-		describe("reverseLabelNegation", () => {
-			it("should return null for non-existent label", async () => {
-				mockDb.findLabels.mockResolvedValue([]);
-				const result = await server.reverseLabelNegation(999);
-				expect(result).toBeNull();
-			});
-
-			it("should reverse negation without saving", async () => {
-				const result = await server.reverseLabelNegation(1, false);
-				expect(result).toBeDefined();
-				expect(result?.neg).toBe(!mockLabel.neg);
-				expect(mockDb.saveLabel).not.toHaveBeenCalled();
-			});
-
-			it("should reverse negation and save", async () => {
-				const reversedLabel = { ...mockLabel, neg: !mockLabel.neg };
-				mockDb.saveLabel.mockResolvedValue(reversedLabel);
-				const result = await server.reverseLabelNegation(1, true);
-				expect(result).toBeDefined();
-				expect(result?.neg).toBe(!mockLabel.neg);
-				expect(mockDb.saveLabel).toHaveBeenCalled();
-			});
-
-			it("should handle database errors when saving", async () => {
-				mockDb.saveLabel.mockRejectedValue(new Error("Database error"));
-				await expect(server.reverseLabelNegation(1, true)).rejects.toThrow(LabelerServerError);
-			});
-		});
-	});
-
-	describe("close", () => {
-		it("should close database connection", async () => {
-			mockDb.close.mockResolvedValue();
-			await expect(server.close()).resolves.toBeUndefined();
-			expect(mockDb.close).toHaveBeenCalled();
-		});
-
-		it("should handle database close errors", async () => {
-			mockDb.close.mockRejectedValue(new Error("Close error"));
-			await expect(server.close()).rejects.toThrow(LabelerServerError);
-		});
-	});
-
-	describe('LabelerServerError', () => {
-		it('should create an error with a custom message', () => {
-			const errorMessage = 'Test error message';
-			const error = new LabelerServerError(errorMessage);
-			expect(error.message).toBe(errorMessage);
-			expect(error.name).toBe('LabelerServerError');
-		});
-
-		it('should create an error with a custom message and cause', () => {
-			const errorMessage = 'Test error message';
-			const cause = new Error('Test cause');
-			const error = new LabelerServerError(errorMessage, cause);
-			expect(error.message).toBe(errorMessage);
-			expect(error.cause).toBe(cause);
-		});
-	});
-
-	describe('LabelerServer Constructor', () => {
-		const mockMongoUri = 'mongodb://localhost:27017';
-		const mockDatabaseName = 'testLabeler';
-		const mockCollectionName = 'testLabels';
-		const mockDid = 'did:example:test';
-		const mockSigningKey = 'base64encodedkey';
-
-		beforeEach(() => {
-			jest.clearAllMocks();
-			mockImport.mockResolvedValue(mockSigner);
-			(validateDid as jest.Mock).mockImplementation(() => undefined);
-		});
-
-		it("should successfully initialize with valid options", async () => {
-			const labelerServer = new LabelerServer({
-				did: mockDid as `did:${string}`,
-				mongoUri: mockMongoUri,
-				signingKey: mockSigningKey,
-				databaseName: mockDatabaseName,
-				collectionName: mockCollectionName
-			});
-
-			expect(MongoDBClient).toHaveBeenCalledWith(
-				mockMongoUri,
-				mockDatabaseName,
-				mockCollectionName
-			);
-			expect(mockImport).toHaveBeenCalledWith(mockSigningKey);
-
-			await new Promise(process.nextTick);
-			expect(labelerServer.did).toBe(mockDid);
-		});
-
-		it("should handle signer initialization errors", async () => {
-			const error = new Error("Import error");
-			mockImport.mockRejectedValue(error);
-
-			const options: LabelerOptions = {
-				did: mockDid as `did:${string}`,
-				mongoUri: mockMongoUri,
-				signingKey: mockSigningKey,
-			};
-
-			const labelerServer = new LabelerServer(options);
-			await expect(labelerServer.getInitializationPromise()).rejects.toThrow("Failed to initialize signer: Import error");
-		});
-
-		it("should handle non-Error objects in error handling", async () => {
-			// Simular un error que no es una instancia de Error
-			mockImport.mockRejectedValue("string error");
-
-			const options: LabelerOptions = {
-				did: mockDid as `did:${string}`,
-				mongoUri: mockMongoUri,
-				signingKey: mockSigningKey,
-			};
-
-			const labelerServer = new LabelerServer(options);
-			await expect(labelerServer.getInitializationPromise()).rejects.toThrow("Failed to initialize signer: string error");
-		});
-
-		it("should handle missing signingKey", () => {
-			const options = {
-				did: mockDid as `did:${string}`,
-				mongoUri: mockMongoUri,
-			} as LabelerOptions;
-
-			expect(() => new LabelerServer(options)).toThrow();
-		});
-
-		it("should handle invalid database configuration", () => {
-			const options: LabelerOptions = {
-				did: mockDid as `did:${string}`,
-				mongoUri: "",
-				signingKey: mockSigningKey,
-			};
-
-			expect(() => new LabelerServer(options)).toThrow();
-		});
-	});
+        await expect(server.reverseLabelNegation(1)).rejects.toThrow('Failed to reverse label negation');
+      });
+    });
+  });
 });

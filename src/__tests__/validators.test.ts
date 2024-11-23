@@ -1,5 +1,6 @@
 // Mock @atproto/syntax before imports
 jest.mock('@atproto/syntax', () => ({
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   AtUri: jest.fn().mockImplementation((uri: string) => {
     if (uri === 'at://mock/error') {
       throw new Error('Mock AtUri error');
@@ -110,16 +111,16 @@ describe('validateAtUri', () => {
 
     // Null and undefined
     expect(() => {
-      validateAtUri(null as any);
+      validateAtUri(null as unknown as string);
     }).toThrow(AtProtocolValidationError);
     expect(() => {
-      validateAtUri(null as any);
+      validateAtUri(null as unknown as string);
     }).toThrow('URI cannot be null or empty');
     expect(() => {
-      validateAtUri(undefined as any);
+      validateAtUri(undefined as unknown as string);
     }).toThrow(AtProtocolValidationError);
     expect(() => {
-      validateAtUri(undefined as any);
+      validateAtUri(undefined as unknown as string);
     }).toThrow('URI cannot be null or empty');
   });
 });

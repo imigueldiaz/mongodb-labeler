@@ -69,9 +69,18 @@ importers:
       jest:
         specifier: ^29.7.0
         version: 29.7.0(@types/node@20.17.6)
+      jest-circus:
+        specifier: ^29.7.0
+        version: 29.7.0
+      jest-junit:
+        specifier: ^16.0.0
+        version: 16.0.0
       mongodb-memory-server:
         specifier: ^9.1.6
         version: 9.5.0
+      mongodb-memory-server-core:
+        specifier: ^10.1.2
+        version: 10.1.2(socks@2.8.3)
       supertest:
         specifier: ^6.3.4
         version: 6.3.4
@@ -736,6 +745,9 @@ packages:
 
   async-mutex@0.4.1:
     resolution: {integrity: sha512-WfoBo4E/TbCX1G95XTjbWTE3X2XLG0m1Xbv2cwOtuPdyH9CZvnaA5nCt1ucjaKEgW2A5IF71hxrRhr83Je5xjA==}
+
+  async-mutex@0.5.0:
+    resolution: {integrity: sha512-1A94B18jkJ3DYq284ohPxoXbfTA5HsQ7/Mf4DEhcyLx3Bz27Rh59iScbB6EPiP+B+joue6YCxcMXSbFC1tZKwA==}
 
   async@3.2.6:
     resolution: {integrity: sha512-htCUDlxyyCLMgaM3xXg0C0LW2xqfuQ6p05pCEIsXuyQ+a1koYKTuBMzRNwmybfLgvJDMd0r1LTn4+E0Ti6C2AA==}
@@ -1451,6 +1463,10 @@ packages:
     resolution: {integrity: sha512-fP8u2pyfqx0K1rGn1R9pyE0/KTn+G7PxktWidOBTqFPLYX0b9ksaMFkhK5vrS3DVun09pckLdlx90QthlW7AmA==}
     engines: {node: ^14.15.0 || ^16.10.0 || >=18.0.0}
 
+  jest-junit@16.0.0:
+    resolution: {integrity: sha512-A94mmw6NfJab4Fg/BlvVOUXzXgF0XIH6EmTgJ5NDPp4xoKq0Kr7sErb+4Xs9nZvu58pJojz5RFGpqnZYJTrRfQ==}
+    engines: {node: '>=10.12.0'}
+
   jest-leak-detector@29.7.0:
     resolution: {integrity: sha512-kYA8IJcSYtST2BY9I+SMC32nDpBT3J2NvWJx8+JCuCdl/CR1I4EKUJROiP8XtCcxqgTTBGJNdbB1A8XRKbTetw==}
     engines: {node: ^14.15.0 || ^16.10.0 || >=18.0.0}
@@ -1670,11 +1686,20 @@ packages:
     resolution: {integrity: sha512-G6T0ZX48xgozx7587koeX9Ys2NYy6Gmv//P89sEte9V9whIapMNF4idKxnW2QtCcLiTWlb/wfCabAtAFWhhBow==}
     engines: {node: '>=16 || 14 >=14.17'}
 
+  mkdirp@1.0.4:
+    resolution: {integrity: sha512-vVqVZQyf3WLx2Shd0qJ9xuvqgAyKPLAiqITEtqW0oIUjzo3PePDd6fW9iFz30ef7Ysp/oiWqbhszeGWW2T6Gzw==}
+    engines: {node: '>=10'}
+    hasBin: true
+
   mongodb-connection-string-url@2.6.0:
     resolution: {integrity: sha512-WvTZlI9ab0QYtTYnuMLgobULWhokRjtC7db9LtcVfJ+Hsnyr5eo6ZtNAt3Ly24XZScGMelOcGtm7lSn0332tPQ==}
 
   mongodb-connection-string-url@3.0.1:
     resolution: {integrity: sha512-XqMGwRX0Lgn05TDB4PyG2h2kKO/FfWJyCzYQbIhXUxz7ETt0I/FqHjUeqj37irJ+Dl1ZtU82uYyj14u2XsZKfg==}
+
+  mongodb-memory-server-core@10.1.2:
+    resolution: {integrity: sha512-5Wpz712CuDCKTn/40UZ+kMZlav4Y2imbpWuJU5wjuZk6s3+Jg8akTIBW9jQiFS8wgymu6iTg99Iw0XcypsLyQA==}
+    engines: {node: '>=16.20.1'}
 
   mongodb-memory-server-core@9.5.0:
     resolution: {integrity: sha512-Jb/V80JeYAKWaF4bPFme7SmTR6ew1PWgkpPUepLDfRraeN49i1cruxICeA4zz4T33W/o31N+zazP8wI8ebf7yw==}
@@ -2237,6 +2262,10 @@ packages:
   uri-js@4.4.1:
     resolution: {integrity: sha512-7rKUyy33Q1yc98pQ1DAmLtwX109F7TIfWlW1Ydo8Wl1ii1SeHieeh0HHfPeL2fMXK6z0s8ecKs9frCuLJvndBg==}
 
+  uuid@8.3.2:
+    resolution: {integrity: sha512-+NYs2QeMWy+GWFOEm9xnn6HCDp0l7QBD7ml8zLUmJ+93Q5NF0NocErnwkTkXVFNiX3/fpC6afS8Dhb/gz7R7eg==}
+    hasBin: true
+
   v8-to-istanbul@9.3.0:
     resolution: {integrity: sha512-kiGUalWN+rgBJ/1OHZsBtU4rXZOfj/7rKQxULKlIzwzQSvMJUUNgPwJEEh7gU6xEVxC0ahoOBvN2YI8GH6FNgA==}
     engines: {node: '>=10.12.0'}
@@ -2283,6 +2312,9 @@ packages:
         optional: true
       utf-8-validate:
         optional: true
+
+  xml@1.0.1:
+    resolution: {integrity: sha512-huCv9IH9Tcf95zuYCsQraZtWnJvBtLVE0QHMOs8bWyZAFZNDcYjsPq1nEx8jKA9y+Beo9v+7OBPRisQTjinQMw==}
 
   y18n@5.0.8:
     resolution: {integrity: sha512-0pfFzegeDWJHJIAmTLRP2DwHjdF5s7jo9tuztdQxAhINCdvS+3nGINqPd00AphqJR/0LhANUS6/+7SCb98YOfA==}
@@ -3145,6 +3177,10 @@ snapshots:
     dependencies:
       tslib: 2.8.1
 
+  async-mutex@0.5.0:
+    dependencies:
+      tslib: 2.8.1
+
   async@3.2.6: {}
 
   asynckit@0.4.0: {}
@@ -3986,6 +4022,13 @@ snapshots:
     optionalDependencies:
       fsevents: 2.3.3
 
+  jest-junit@16.0.0:
+    dependencies:
+      mkdirp: 1.0.4
+      strip-ansi: 6.0.1
+      uuid: 8.3.2
+      xml: 1.0.1
+
   jest-leak-detector@29.7.0:
     dependencies:
       jest-get-type: 29.6.3
@@ -4288,6 +4331,8 @@ snapshots:
     dependencies:
       brace-expansion: 2.0.1
 
+  mkdirp@1.0.4: {}
+
   mongodb-connection-string-url@2.6.0:
     dependencies:
       '@types/whatwg-url': 8.2.2
@@ -4297,6 +4342,30 @@ snapshots:
     dependencies:
       '@types/whatwg-url': 11.0.5
       whatwg-url: 13.0.0
+
+  mongodb-memory-server-core@10.1.2(socks@2.8.3):
+    dependencies:
+      async-mutex: 0.5.0
+      camelcase: 6.3.0
+      debug: 4.3.7
+      find-cache-dir: 3.3.2
+      follow-redirects: 1.15.9(debug@4.3.7)
+      https-proxy-agent: 7.0.5
+      mongodb: 6.10.0(socks@2.8.3)
+      new-find-package-json: 2.0.0
+      semver: 7.6.3
+      tar-stream: 3.1.7
+      tslib: 2.8.1
+      yauzl: 3.2.0
+    transitivePeerDependencies:
+      - '@aws-sdk/credential-providers'
+      - '@mongodb-js/zstd'
+      - gcp-metadata
+      - kerberos
+      - mongodb-client-encryption
+      - snappy
+      - socks
+      - supports-color
 
   mongodb-memory-server-core@9.5.0:
     dependencies:
@@ -4826,6 +4895,8 @@ snapshots:
     dependencies:
       punycode: 2.3.1
 
+  uuid@8.3.2: {}
+
   v8-to-istanbul@9.3.0:
     dependencies:
       '@jridgewell/trace-mapping': 0.3.25
@@ -4866,6 +4937,8 @@ snapshots:
       signal-exit: 3.0.7
 
   ws@8.18.0: {}
+
+  xml@1.0.1: {}
 
   y18n@5.0.8: {}
 

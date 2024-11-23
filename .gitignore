@@ -26,6 +26,7 @@ node_modules/
 coverage/
 coverage-report/
 .nyc_output/
+reports/
 
 # Build outputs
 dist/
