@@ -19,21 +19,6 @@ jobs:
       - run: pnpm install
       - run: pnpm build
       
-      # Pre-download MongoDB binary
-      - name: Cache MongoDB Memory Server binaries
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/mongodb-memory-server
-          key: ${{ runner.os }}-mongodb-memory-server-v10
-          restore-keys: |
-            ${{ runner.os }}-mongodb-memory-server-v10
-      
-      # Set environment variable to skip binary download if cached
-      - name: Set MongoDB Memory Server Variables
-        run: |
-          echo "MONGOMS_SYSTEM_BINARY=$HOME/.cache/mongodb-memory-server/mongodb-binaries" >> $GITHUB_ENV
-          echo "MONGOMS_DOWNLOAD_URL=https://fastdl.mongodb.org/linux/mongodb-linux-x86_64-ubuntu2204-7.0.5.tgz" >> $GITHUB_ENV
-      
       - name: Run tests
         run: pnpm test:coverage
         
