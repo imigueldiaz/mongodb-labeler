@@ -11,15 +11,11 @@ on:
         type: string
 
 jobs:
-  publish:
+  publish-npm:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
     steps:
       - uses: actions/checkout@v4
         with:
-          # Asegurarse de que se obtiene el tag correcto en ejecuciones manuales
           ref: ${{ github.event.release.tag_name || github.event.inputs.release_tag }}
       
       - uses: pnpm/action-setup@v4
@@ -30,7 +26,15 @@ jobs:
         with:
           node-version: '21.x'
           registry-url: 'https://registry.npmjs.org'
-          
+      
+      # Configurar .npmrc específico para NPM
+      - name: Setup NPM config
+        run: |
+          echo "@imigueldiaz:registry=https://registry.npmjs.org/" > .npmrc
+          echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" >> .npmrc
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      
       - run: pnpm install
       - run: pnpm build
       
@@ -38,11 +42,42 @@ jobs:
         uses: JS-DevTools/npm-publish@v3
         with:
           token: ${{ secrets.NPM_TOKEN }}
+          registry: https://registry.npmjs.org/
           access: public
+          scope: '@imigueldiaz'
+
+  publish-github:
+    needs: publish-npm
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name || github.event.inputs.release_tag }}
+      
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 8
           
-      - name: Publish to GitHub Packages
-        uses: JS-DevTools/npm-publish@v3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '21.x'
+          registry-url: 'https://npm.pkg.github.com'
+      
+      # Configurar .npmrc específico para GitHub Packages
+      - name: Setup GitHub config
+        run: |
+          echo "@imigueldiaz:registry=https://npm.pkg.github.com" > .npmrc
+          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" >> .npmrc
+          
+      - run: pnpm install
+      - run: pnpm build
+      
+      - uses: JS-DevTools/npm-publish@v3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           registry: https://npm.pkg.github.com
           access: public
+          scope: '@imigueldiaz'

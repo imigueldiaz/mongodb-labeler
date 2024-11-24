@@ -6,7 +6,10 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "license": "MIT",
-  "repository": "https://github.com/imigueldiaz/mongodb-labeler",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/imigueldiaz/mongodb-labeler.git"
+  },
   "homepage": "https://github.com/imigueldiaz/mongodb-labeler#readme",
   "logo": "assets/logo.svg",
   "keywords": [
