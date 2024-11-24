@@ -13,6 +13,9 @@ on:
 jobs:
   publish-npm:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -27,16 +30,12 @@ jobs:
           node-version: '21.x'
           registry-url: 'https://registry.npmjs.org'
       
-      # Configurar .npmrc específico para NPM
-      - name: Setup NPM config
-        run: |
-          echo "@imigueldiaz:registry=https://registry.npmjs.org/" > .npmrc
-          echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" >> .npmrc
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-      
       - run: pnpm install
       - run: pnpm build
+
+      - name: NPM Authentication
+        run: |
+          echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
       
       - name: Publish to NPM
         uses: JS-DevTools/npm-publish@v3
@@ -44,7 +43,6 @@ jobs:
           token: ${{ secrets.NPM_TOKEN }}
           registry: https://registry.npmjs.org/
           access: public
-          scope: '@imigueldiaz'
 
   publish-github:
     needs: publish-npm
@@ -65,19 +63,19 @@ jobs:
         with:
           node-version: '21.x'
           registry-url: 'https://npm.pkg.github.com'
+          scope: '@imigueldiaz'
       
-      # Configurar .npmrc específico para GitHub Packages
-      - name: Setup GitHub config
-        run: |
-          echo "@imigueldiaz:registry=https://npm.pkg.github.com" > .npmrc
-          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" >> .npmrc
-          
       - run: pnpm install
       - run: pnpm build
+
+      - name: GitHub Packages Authentication
+        run: |
+          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" > ~/.npmrc
+          echo "@imigueldiaz:registry=https://npm.pkg.github.com" >> ~/.npmrc
       
-      - uses: JS-DevTools/npm-publish@v3
+      - name: Publish to GitHub Packages
+        uses: JS-DevTools/npm-publish@v3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           registry: https://npm.pkg.github.com
           access: public
-          scope: '@imigueldiaz'
