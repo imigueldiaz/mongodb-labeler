@@ -39,7 +39,7 @@ jobs:
     
       # Paso 6: Publicar el paquete en npm
       - name: Publish to NPM
-        run: pnpm publish --access public --provenance
+        run: pnpm publish --access public --provenance --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
          
@@ -73,6 +73,6 @@ jobs:
      
       # Paso 6: Publicar el paquete en GitHub Packages
       - name: Publish to GitHub Packages
-        run: pnpm publish --access public --provenance
+        run: pnpm publish --access public --provenance --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
