@@ -36,6 +36,7 @@ jobs:
       - name: NPM Authentication
         run: |
           echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
+          echo "@imigueldiaz:registry=https://registry.npmjs.org/" >> ~/.npmrc
       
       - name: Publish to NPM
         uses: JS-DevTools/npm-publish@v3
@@ -72,6 +73,7 @@ jobs:
         run: |
           echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" > ~/.npmrc
           echo "@imigueldiaz:registry=https://npm.pkg.github.com" >> ~/.npmrc
+          echo "registry=https://npm.pkg.github.com" >> ~/.npmrc
       
       - name: Publish to GitHub Packages
         uses: JS-DevTools/npm-publish@v3
