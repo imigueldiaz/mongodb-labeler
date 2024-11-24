@@ -1,24 +1,24 @@
 {
-	"compilerOptions": {
-		"target": "ES2020",
-		"module": "ES2020",
-		"moduleResolution": "node",
-		"esModuleInterop": true,
-		"declaration": true,
-		"outDir": "./dist",
-		"strict": true,
-		"skipLibCheck": true,
-		"lib": ["ES2022", "DOM"],
-		"types": ["node", "jest"],
-		"strictPropertyInitialization": false
-	},
-	"include": [
-		"src/**/*.ts",
-		"src/**/__tests__/**/*.ts",
-		"jest.setup.ts"
-	],
-	"exclude": [
-		"node_modules",
-		"dist"
-	]
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ES2020",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "declaration": true,
+    "outDir": "./dist",
+    "strict": true,
+    "skipLibCheck": true,
+    "lib": ["ES2022", "DOM"],
+    "types": ["node", "jest"],
+    "strictPropertyInitialization": false
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/**/__tests__/**/*.ts",
+    "jest.setup.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
 }

@@ -41,13 +41,13 @@ pnpm install @imigueldiaz/mongodb-labeler
 ## Usage
 
 ```typescript
-import { MongoDBLabeler } from '@imigueldiaz/mongodb-labeler';
+import { MongoDBLabeler } from "@imigueldiaz/mongodb-labeler";
 
 // Initialize the labeler
 const labeler = new MongoDBLabeler({
-    uri: 'your-mongodb-uri',
-    database: 'your-database',
-    collection: 'your-collection'
+  uri: "your-mongodb-uri",
+  database: "your-database",
+  collection: "your-collection",
 });
 
 // Start labeling session
@@ -87,33 +87,35 @@ The labeler can be configured with the following options:
 ```
 
 For basic MongoDB usage:
+
 ```typescript
-import { MongoDBLabeler } from '@imigueldiaz/mongodb-labeler';
+import { MongoDBLabeler } from "@imigueldiaz/mongodb-labeler";
 
 const labeler = new MongoDBLabeler({
-    mongoUri: 'mongodb://localhost:27017',
-    databaseName: 'my_database',
-    collectionName: 'my_labels'
+  mongoUri: "mongodb://localhost:27017",
+  databaseName: "my_database",
+  collectionName: "my_labels",
 });
 ```
 
 For ATProtocol usage:
+
 ```typescript
-import { LabelerServer } from '@imigueldiaz/mongodb-labeler';
+import { LabelerServer } from "@imigueldiaz/mongodb-labeler";
 
 const server = new LabelerServer({
-    did: 'your-did',
-    signingKey: 'your-signing-key',
-    mongoUri: 'mongodb://localhost:27017',
-    databaseName: 'atproto_labels'
+  did: "your-did",
+  signingKey: "your-signing-key",
+  mongoUri: "mongodb://localhost:27017",
+  databaseName: "atproto_labels",
 });
 
 server.start((error, address) => {
-    if (error) {
-        console.error(error);
-    } else {
-        console.log(`Labeler server listening on ${address}`);
-    }
+  if (error) {
+    console.error(error);
+  } else {
+    console.log(`Labeler server listening on ${address}`);
+  }
 });
 ```
 

@@ -41,7 +41,7 @@ export type UnsignedLabel = Omit<ComAtprotoLabelDefs.Label, "sig">;
 export type SignedLabel = UnsignedLabel & { sig: Uint8Array };
 export type FormattedLabel = UnsignedLabel & { sig?: At.Bytes };
 export type SavedLabel = UnsignedLabel & { sig: ArrayBuffer; id: number };
-export type MongoSavedLabel = Omit<SavedLabel, 'sig'> & {
+export type MongoSavedLabel = Omit<SavedLabel, "sig"> & {
   id: number & ObjectId;
   sig: Binary;
 };
@@ -66,5 +66,5 @@ export type ProcedureHandler<
 >;
 export type SubscriptionHandler<
   T extends RequestGenericInterface["Querystring"] = RequestGenericInterface["Querystring"],
-// eslint-disable-next-line @typescript-eslint/naming-convention
-> = WebsocketHandler<RawServerDefault, RawRequestDefaultExpression, { Querystring: T }>;
+> // eslint-disable-next-line @typescript-eslint/naming-convention
+ = WebsocketHandler<RawServerDefault, RawRequestDefaultExpression, { Querystring: T }>;
