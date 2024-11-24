@@ -101,7 +101,8 @@ describe('LabelerServer', () => {
         writable: true
       });
 
-      await expect(server.close()).rejects.toThrow(/Failed to close database connection/);
+      await expect(server.close()).rejects.toThrow('Failed to close database connection');
+      expect(mockDb.close).toHaveBeenCalled();
     });
   });
 
