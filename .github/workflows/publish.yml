@@ -20,13 +20,15 @@ jobs:
         with:
           version: 8
       
-      # Crear .npmrc temporal para npm
-      - name: Create .npmrc
+      # Eliminar .npmrc existente y crear uno nuevo
+      - name: Setup NPM authentication
         run: |
+          rm -f .npmrc
+          rm -f ~/.npmrc
           echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > .npmrc
           echo "registry=https://registry.npmjs.org/" >> .npmrc
       
-      - run: pnpm install
+      - run: pnpm install --no-frozen-lockfile
       - run: pnpm build
       - run: pnpm test:coverage
       
@@ -34,6 +36,7 @@ jobs:
         run: NODE_ENV=production pnpm publish --no-git-checks --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_REGISTRY: https://registry.npmjs.org/
 
   publish-github:
     runs-on: ubuntu-latest
@@ -54,13 +57,15 @@ jobs:
         with:
           version: 8
       
-      # Crear .npmrc temporal para GitHub Packages
-      - name: Create .npmrc for GitHub Packages
+      # Eliminar .npmrc existente y crear uno nuevo
+      - name: Setup GitHub Packages authentication
         run: |
+          rm -f .npmrc
+          rm -f ~/.npmrc
           echo "@imigueldiaz:registry=https://npm.pkg.github.com" > .npmrc
           echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" >> .npmrc
       
-      - run: pnpm install
+      - run: pnpm install --no-frozen-lockfile
       - run: pnpm build
       - run: pnpm test:coverage
       
@@ -68,3 +73,4 @@ jobs:
         run: NODE_ENV=production pnpm publish --no-git-checks --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_CONFIG_REGISTRY: https://npm.pkg.github.com/
