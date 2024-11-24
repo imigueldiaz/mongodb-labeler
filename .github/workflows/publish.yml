@@ -5,72 +5,35 @@ on:
     types: [created]
 
 jobs:
-  publish-npm:
+  publish:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '21.x'
-          registry-url: 'https://registry.npmjs.org'
-          scope: '@imigueldiaz'
-      
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 8
-      
-      # Eliminar .npmrc existente y crear uno nuevo
-      - name: Setup NPM authentication
-        run: |
-          rm -f .npmrc
-          rm -f ~/.npmrc
-          echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > .npmrc
-          echo "registry=https://registry.npmjs.org/" >> .npmrc
-      
-      - run: pnpm install --no-frozen-lockfile
-      - run: pnpm build
-      - run: pnpm test:coverage
-      
-      - name: Publish to NPM
-        run: NODE_ENV=production pnpm publish --no-git-checks --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NPM_CONFIG_REGISTRY: https://registry.npmjs.org/
-
-  publish-github:
-    runs-on: ubuntu-latest
-    needs: publish-npm
     permissions:
       contents: read
       packages: write
     steps:
       - uses: actions/checkout@v4
       
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '21.x'
-          registry-url: 'https://npm.pkg.github.com'
-          scope: '@imigueldiaz'
-      
       - uses: pnpm/action-setup@v4
         with:
           version: 8
-      
-      # Eliminar .npmrc existente y crear uno nuevo
-      - name: Setup GitHub Packages authentication
-        run: |
-          rm -f .npmrc
-          rm -f ~/.npmrc
-          echo "@imigueldiaz:registry=https://npm.pkg.github.com" > .npmrc
-          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" >> .npmrc
-      
-      - run: pnpm install --no-frozen-lockfile
+          
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '21.x'
+          registry-url: 'https://registry.npmjs.org'
+          
+      - run: pnpm install
       - run: pnpm build
-      - run: pnpm test:coverage
       
+      - name: Publish to NPM
+        uses: JS-DevTools/npm-publish@v3
+        with:
+          token: ${{ secrets.NPM_TOKEN }}
+          access: public
+          
       - name: Publish to GitHub Packages
-        run: NODE_ENV=production pnpm publish --no-git-checks --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_CONFIG_REGISTRY: https://npm.pkg.github.com/
+        uses: JS-DevTools/npm-publish@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          registry: https://npm.pkg.github.com
+          access: public
