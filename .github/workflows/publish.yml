@@ -16,6 +16,7 @@ jobs:
     permissions:
       contents: write
       packages: write
+      id-token: write
     steps:
       # Paso 1: Checkout del código
       - uses: actions/checkout@v4
@@ -50,6 +51,7 @@ jobs:
     permissions:
       contents: write
       packages: write
+      id-token: write
     steps:
       # Paso 1: Checkout del código
       - uses: actions/checkout@v4
