@@ -7,7 +7,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-%23007ACC.svg?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![AT Protocol](https://img.shields.io/badge/AT_Protocol-compatible-blue)](https://atproto.com/)
 [![MongoDB](https://img.shields.io/badge/MongoDB-%234ea94b.svg?logo=mongodb&logoColor=white)](https://www.mongodb.com/)
-[![codecov](https://codecov.io/gh/imigueldiaz/mongodb-labeler/graph/badge.svg)](https://codecov.io/gh/imigueldiaz/mongodb-labeler)
+[![codecov](https://codecov.io/gh/imigueldiaz/mongodb-labeler/graph/badge.svg?token=MRBW95LY97)](https://codecov.io/gh/imigueldiaz/mongodb-labeler)
 
 <p align="center">
   <img src="assets/logo.svg" width="400" alt="MongoDB Labeler Logo">
