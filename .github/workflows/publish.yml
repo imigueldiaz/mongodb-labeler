@@ -25,9 +25,9 @@ jobs:
       # Paso 2: Configurar Node.js con npm
       - uses: actions/setup-node@v4
         with:
-          node-version: 'lts/*'
+          node-version: '21'
           registry-url: 'https://registry.npmjs.org'
-          scope: '@imigueldiaz'
+          auth-token: ${{ secrets.NPM_TOKEN }}
 
       # Paso 3: Instalar PNPM
       - uses: pnpm/action-setup@v4
@@ -36,18 +36,13 @@ jobs:
 
       # Paso 4: Instalar dependencias
       - run: pnpm install
-
-      # Paso 5: Construir el paquete y validar
-      - run: pnpm prepublish # Ejecuta lint, fmt, y build
-
+    
       # Paso 6: Publicar el paquete en npm
       - name: Publish to NPM
+        run: pnpm publish --access public --provenance
         env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > .npmrc
-          cat .npmrc
-          pnpm publish --access public
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+         
 
   publish-github:
     needs: publish-npm
@@ -64,9 +59,9 @@ jobs:
       # Paso 2: Configurar Node.js para GitHub Packages
       - uses: actions/setup-node@v4
         with:
-          node-version: 'lts/*'
+          node-version: '21'
           registry-url: 'https://npm.pkg.github.com'
-          scope: '@imigueldiaz'
+          auth-token: ${{ secrets.GITHUB_TOKEN }}
 
       # Paso 3: Instalar PNPM
       - uses: pnpm/action-setup@v4
@@ -75,15 +70,9 @@ jobs:
 
       # Paso 4: Instalar dependencias
       - run: pnpm install
-
-      # Paso 5: Construir el paquete
-      - run: pnpm prepublish
-
+     
       # Paso 6: Publicar el paquete en GitHub Packages
       - name: Publish to GitHub Packages
+        run: pnpm publish --access public --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          echo "//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}" > .npmrc
-          cat .npmrc
-          pnpm publish --access public
