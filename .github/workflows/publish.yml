@@ -14,22 +14,23 @@ jobs:
   publish-npm:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       packages: write
+      id-token: write
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.release.tag_name || github.event.inputs.release_tag }}
       
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9
-          
       - uses: actions/setup-node@v4
         with:
           node-version: '21.x'
           registry-url: 'https://registry.npmjs.org'
           scope: '@imigueldiaz'
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
       
       - run: pnpm install
       - run: pnpm build
@@ -37,28 +38,30 @@ jobs:
       - name: Publish to NPM
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --access public
+        run: |
+          npm publish --access public --provenance
 
   publish-github:
     needs: publish-npm
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       packages: write
+      id-token: write
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.release.tag_name || github.event.inputs.release_tag }}
       
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9
-          
       - uses: actions/setup-node@v4
         with:
           node-version: '21.x'
           registry-url: 'https://npm.pkg.github.com'
           scope: '@imigueldiaz'
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
       
       - run: pnpm install
       - run: pnpm build
@@ -66,4 +69,5 @@ jobs:
       - name: Publish to GitHub Packages
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npm publish --access public
+        run: |
+          npm publish --access public --provenance
