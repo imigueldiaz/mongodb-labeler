@@ -65,6 +65,9 @@ describe('LabelerServer', () => {
   });
 
   describe('MongoDB Operations', () => {
+    // Increase timeout for MongoDB operations
+    jest.setTimeout(120000); // 2 minutes
+
     it('should handle invalid MongoDB URI', () => {
       expect(() => new LabelerServer({
         ...options,
