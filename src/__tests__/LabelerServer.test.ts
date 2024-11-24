@@ -1,4 +1,4 @@
-import { LabelerServer } from '../LabelerServer.js';
+import { LabelerServer, LabelerServerError } from '../LabelerServer';
 import type { LabelerOptions } from '../LabelerServer.js';
 import { MongoClient, type Collection } from "mongodb";
 import { MongoMemoryServer } from 'mongodb-memory-server';
@@ -92,17 +92,21 @@ describe('LabelerServer', () => {
     });
 
     it('should handle errors in close', async () => {
-      const mockDb = {
-        close: jest.fn().mockRejectedValue(new Error('Close failed'))
-      };
+      const error = new Error('Close failed');
+      const closeSpy = jest.spyOn(server.db, 'close').mockRejectedValueOnce(error);
 
-      Object.defineProperty(server.db, '_client', {
-        value: mockDb,
-        writable: true
-      });
-
-      await expect(server.close()).rejects.toThrow('Failed to close database connection');
-      expect(mockDb.close).toHaveBeenCalled();
+      try {
+        await server.close();
+        fail('Expected server.close() to throw an error');
+      } catch (err: unknown) {
+        if (err instanceof LabelerServerError) {
+          expect(err.message).toBe('Failed to close database connection');
+        } else {
+          fail('Expected error to be instance of LabelerServerError');
+        }
+      } finally {
+        closeSpy.mockRestore();
+      }
     });
   });
 
