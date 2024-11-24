@@ -92,8 +92,9 @@ describe('LabelerServer', () => {
     });
 
     it('should handle errors in close', async () => {
-      const error = new Error('Close failed');
-      const closeSpy = jest.spyOn(server.db, 'close').mockRejectedValueOnce(error);
+      // Mock the close method directly
+      const mockClose = jest.fn().mockRejectedValueOnce(new Error('Close failed'));
+      jest.spyOn(server.db, 'close').mockImplementationOnce(mockClose);
 
       try {
         await server.close();
@@ -104,8 +105,6 @@ describe('LabelerServer', () => {
         } else {
           fail('Expected error to be instance of LabelerServerError');
         }
-      } finally {
-        closeSpy.mockRestore();
       }
     });
   });
