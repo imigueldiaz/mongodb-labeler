@@ -9,23 +9,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         with:
-          node-version: '20.x'
+          node-version: '21'
           registry-url: 'https://registry.npmjs.org'
-      - uses: pnpm/action-setup@v2
+      - uses: pnpm/action-setup@v4
         with:
           version: 8
       - run: pnpm install
       - run: pnpm build
-      - run: pnpm test
-      - run: pnpm publish --no-git-checks
+      - run: NODE_ENV=test pnpm test
+      - name: Publish to NPM
+        run: NODE_ENV=production pnpm publish --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
       
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         with:
           registry-url: 'https://npm.pkg.github.com'
-      - run: pnpm publish --no-git-checks --access public
+      - name: Publish to GitHub Packages
+        run: NODE_ENV=production pnpm publish --no-git-checks --access public
         env:
           NODE_AUTH_TOKEN: ${{secrets.GITHUB_TOKEN}}
