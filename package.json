@@ -2,7 +2,7 @@
   "name": "@imigueldiaz/mongodb-labeler",
   "type": "module",
   "description": "A MongoDB-based labeling system for content moderation with cryptographic signing",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "license": "MIT",
