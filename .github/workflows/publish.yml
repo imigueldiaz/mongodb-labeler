@@ -2,7 +2,7 @@ name: Publish Package
 
 on:
   release:
-    types: [created]
+    types: [created] # Se ejecuta cuando se crea un release en GitHub
   workflow_dispatch:
     inputs:
       release_tag:
@@ -16,30 +16,38 @@ jobs:
     permissions:
       contents: write
       packages: write
-      id-token: write
     steps:
+      # Paso 1: Checkout del código
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.release.tag_name || github.event.inputs.release_tag }}
       
+      # Paso 2: Configurar Node.js con npm
       - uses: actions/setup-node@v4
         with:
-          node-version: '21.x'
+          node-version: 'lts/*'
           registry-url: 'https://registry.npmjs.org'
           scope: '@imigueldiaz'
 
+      # Paso 3: Instalar PNPM
       - uses: pnpm/action-setup@v4
         with:
           version: 9
-      
+
+      # Paso 4: Instalar dependencias
       - run: pnpm install
-      - run: pnpm build
-      
+
+      # Paso 5: Construir el paquete y validar
+      - run: pnpm prepublish # Ejecuta lint, fmt, y build
+
+      # Paso 6: Publicar el paquete en npm
       - name: Publish to NPM
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          npm publish --access public --provenance
+          echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > .npmrc
+          cat .npmrc
+          pnpm publish --access public
 
   publish-github:
     needs: publish-npm
@@ -47,27 +55,35 @@ jobs:
     permissions:
       contents: write
       packages: write
-      id-token: write
     steps:
+      # Paso 1: Checkout del código
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.release.tag_name || github.event.inputs.release_tag }}
       
+      # Paso 2: Configurar Node.js para GitHub Packages
       - uses: actions/setup-node@v4
         with:
-          node-version: '21.x'
+          node-version: 'lts/*'
           registry-url: 'https://npm.pkg.github.com'
           scope: '@imigueldiaz'
 
+      # Paso 3: Instalar PNPM
       - uses: pnpm/action-setup@v4
         with:
           version: 9
-      
+
+      # Paso 4: Instalar dependencias
       - run: pnpm install
-      - run: pnpm build
-      
+
+      # Paso 5: Construir el paquete
+      - run: pnpm prepublish
+
+      # Paso 6: Publicar el paquete en GitHub Packages
       - name: Publish to GitHub Packages
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          npm publish --access public --provenance
+          echo "//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}" > .npmrc
+          cat .npmrc
+          pnpm publish --access public
