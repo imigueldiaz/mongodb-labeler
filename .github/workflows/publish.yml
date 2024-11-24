@@ -9,22 +9,31 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      
       - uses: actions/setup-node@v4
         with:
           node-version: '21.x'
           registry-url: 'https://registry.npmjs.org'
           scope: '@imigueldiaz'
+      
       - uses: pnpm/action-setup@v4
         with:
           version: 8
+      
+      # Crear .npmrc temporal para npm
+      - name: Create .npmrc
+        run: |
+          echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > .npmrc
+          echo "registry=https://registry.npmjs.org/" >> .npmrc
+      
       - run: pnpm install
       - run: pnpm build
-      - name: Run tests
-        run: pnpm test:coverage
+      - run: pnpm test:coverage
+      
       - name: Publish to NPM
-        run: NODE_ENV=production pnpm publish --no-git-checks
+        run: NODE_ENV=production pnpm publish --no-git-checks --access public
         env:
-          NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   publish-github:
     runs-on: ubuntu-latest
@@ -34,19 +43,28 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v4
+      
       - uses: actions/setup-node@v4
         with:
           node-version: '21.x'
           registry-url: 'https://npm.pkg.github.com'
           scope: '@imigueldiaz'
+      
       - uses: pnpm/action-setup@v4
         with:
           version: 8
+      
+      # Crear .npmrc temporal para GitHub Packages
+      - name: Create .npmrc for GitHub Packages
+        run: |
+          echo "@imigueldiaz:registry=https://npm.pkg.github.com" > .npmrc
+          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" >> .npmrc
+      
       - run: pnpm install
       - run: pnpm build
-      - name: Run tests
-        run: pnpm test:coverage
+      - run: pnpm test:coverage
+      
       - name: Publish to GitHub Packages
-        run: NODE_ENV=production pnpm publish --no-git-checks
+        run: NODE_ENV=production pnpm publish --no-git-checks --access public
         env:
-          NODE_AUTH_TOKEN: ${{secrets.GITHUB_TOKEN}}
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
