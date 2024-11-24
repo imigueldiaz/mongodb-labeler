@@ -29,16 +29,15 @@ jobs:
         with:
           node-version: '21.x'
           registry-url: 'https://registry.npmjs.org'
+          scope: '@imigueldiaz'
       
       - run: pnpm install
       - run: pnpm build
-
+      
       - name: Publish to NPM
-        uses: JS-DevTools/npm-publish@v3
-        with:
-          token: ${{ secrets.NPM_TOKEN }}
-          registry: https://registry.npmjs.org/
-          access: public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public
 
   publish-github:
     needs: publish-npm
@@ -65,8 +64,6 @@ jobs:
       - run: pnpm build
       
       - name: Publish to GitHub Packages
-        uses: JS-DevTools/npm-publish@v3
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          registry: https://npm.pkg.github.com
-          access: public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm publish --access public
