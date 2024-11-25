@@ -34,15 +34,15 @@ jobs:
         with:
           version: 9
 
-      # Paso 4: Crear archivo .npmrc para npm
-      - name: Create npmrc
+      # Paso 4: Instalar dependencias
+      - run: pnpm install
+    
+      # Paso 5: Crear archivo .npmrc para npm
+      - name: Setup NPM registry
         run: |
           echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > .npmrc
           echo "registry=https://registry.npmjs.org/" >> .npmrc
 
-      # Paso 5: Instalar dependencias
-      - run: pnpm install
-    
       # Paso 6: Publicar el paquete en npm
       - name: Publish to NPM
         run: pnpm publish --access public --provenance --no-git-checks
@@ -75,16 +75,16 @@ jobs:
         with:
           version: 9
 
-      # Paso 4: Crear archivo .npmrc para GitHub Packages
-      - name: Create npmrc for GitHub
+      # Paso 4: Instalar dependencias
+      - run: pnpm install
+     
+      # Paso 5: Crear archivo .npmrc para GitHub Packages
+      - name: Setup GitHub registry
         run: |
           echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" > .npmrc
           echo "@imigueldiaz:registry=https://npm.pkg.github.com" >> .npmrc
           echo "registry=https://npm.pkg.github.com" >> .npmrc
 
-      # Paso 5: Instalar dependencias
-      - run: pnpm install
-     
       # Paso 6: Publicar el paquete en GitHub Packages
       - name: Publish to GitHub Packages
         run: pnpm publish --access public --provenance --no-git-checks
