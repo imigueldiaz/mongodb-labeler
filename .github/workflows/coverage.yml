@@ -17,11 +17,17 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: '**/package-lock.json'
 
-      - name: Clean install
+      - name: Clean npm cache
         run: |
+          npm cache clean --force
+          rm -rf ~/.npm
           rm -rf node_modules
-          npm install --no-optional
+
+      - name: Install dependencies
+        run: npm install --omit=optional
 
       - name: Run tests with coverage
         run: npm run test:coverage
@@ -30,7 +36,3 @@ jobs:
         uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          file: ./coverage/lcov.info
-          flags: unittests
-          name: codecov-umbrella
-          fail_ci_if_error: false
