@@ -26,7 +26,6 @@ export default [
       '@typescript-eslint/no-explicit-any': 'warn',
       '@typescript-eslint/no-misused-promises': 'error',
       '@typescript-eslint/no-non-null-assertion': 'warn',
-      '@typescript-eslint/no-throw-literal': 'error',
       '@typescript-eslint/no-unnecessary-condition': 'warn',
       '@typescript-eslint/no-unsafe-argument': 'warn',
       '@typescript-eslint/no-unsafe-assignment': 'warn',
