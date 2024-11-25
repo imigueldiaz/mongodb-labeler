@@ -56,6 +56,7 @@ Thumbs.db
 *.local
 config.local.js
 config.local.ts
+.npmrc
 
 # Temporary files
 *.tmp
