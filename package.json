@@ -23,7 +23,7 @@
   ],
   "scripts": {
     "build": "tsc",
-    "lint": "eslint . --ext .ts",
+    "lint": "eslint .",
     "fmt": "dprint fmt",
     "prepack": "npm run build",
     "test": "jest --config jest.config.cjs",
