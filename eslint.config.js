@@ -4,8 +4,14 @@ import globals from 'globals';
 
 export default [
   {
-    ignores: ['dist/**', 'node_modules/**', 'jest.config.cjs']
+    ignores: [
+      'dist/**',
+      'node_modules/**',
+      'jest.config.cjs',
+      'coverage/**'
+    ]
   },
+  // Base TypeScript configuration
   {
     files: ['**/*.ts', '**/*.tsx'],
     languageOptions: {
@@ -16,7 +22,8 @@ export default [
         sourceType: 'module'
       },
       globals: {
-        ...globals.node
+        ...globals.node,
+        ...globals.jest
       }
     },
     plugins: {
@@ -72,6 +79,19 @@ export default [
           }
         }
       ]
+    }
+  },
+  // Test files configuration with relaxed rules
+  {
+    files: ['**/*.test.ts', '**/*.spec.ts', '**/jest.setup.ts'],
+    rules: {
+      '@typescript-eslint/naming-convention': 'off',
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unnecessary-condition': 'off',
+      '@typescript-eslint/explicit-function-return-type': 'off',
+      '@typescript-eslint/no-unused-vars': 'off'
     }
   }
 ];
