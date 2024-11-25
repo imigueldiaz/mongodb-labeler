@@ -15,7 +15,7 @@ export function formatLabel(
     ? { $bytes: Buffer.from(label.sig).toString("base64") }
     : label.sig;
   if (!sig || !("$bytes" in sig)) {
-    throw new Error("Expected sig to be an object with base64 $bytes, got " + sig);
+    throw new Error(`Expected sig to be an object with base64 $bytes, got ${String(sig)}`);
   }
   return excludeNullish({ ...label, ver: LABEL_VERSION, neg: !!label.neg, sig });
 }

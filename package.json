@@ -25,8 +25,7 @@
     "build": "tsc",
     "lint": "eslint . --ext .ts",
     "fmt": "dprint fmt",
-    "prepare": "npm run lint && npm run fmt && npm run build",
-    "prepublish": "",
+    "prepack": "npm run build",
     "test": "jest --config jest.config.cjs",
     "test:watch": "jest --config jest.config.cjs --watch",
     "test:coverage": "jest --config jest.config.cjs --coverage"
@@ -38,27 +37,28 @@
     "access": "public",
     "registry": "https://registry.npmjs.org/"
   },
-  "devDependencies": {
+  
+    "devDependencies": {
     "@atproto/common": "^0.4.4",
     "@atproto/xrpc": "^0.6.4",
     "@types/jest": "^29.5.12",
-    "@types/node": "^20.17.6",
+    "@types/node": "^20.11.24",
     "@types/supertest": "^6.0.2",
-    "@types/ws": "^8.5.13",
-    "@typescript-eslint/eslint-plugin": "^6.7.4",
-    "@typescript-eslint/parser": "^6.7.4",
-    "@typescript-eslint/typescript-estree": "^8.15.0",
-    "dprint": "^0.41.0",
-    "eslint": "^8.50.0",
+    "@types/ws": "^8.5.10",
+    "@typescript-eslint/eslint-plugin": "^7.1.1",
+    "@typescript-eslint/parser": "^7.1.1",
+    "@typescript-eslint/typescript-estree": "^7.1.1",
+    "dprint": "^0.45.0",
+    "eslint": "^8.57.0",
     "jest": "^29.7.0",
     "jest-circus": "^29.7.0",
     "jest-junit": "^16.0.0",
-    "mongodb-memory-server": "^10.1.2",
-    "mongodb-memory-server-core": "^10.1.2",
+    "mongodb-memory-server": "^9.1.6",
+    "mongodb-memory-server-core": "^9.1.6",
     "supertest": "^6.3.4",
     "ts-jest": "^29.1.2",
     "ts-jest-resolver": "^2.0.1",
-    "typescript": "^5.2.2"
+    "typescript": "^5.5.0"
   },
   "dependencies": {
     "@atcute/client": "^2.0.4",
@@ -66,10 +66,11 @@
     "@atproto/syntax": "^0.1.5",
     "@fastify/websocket": "^8.3.1",
     "fastify": "^4.26.1",
-    "mongodb": "^6.3.0",
+    "mongodb": "^6.4.0",
     "uint8arrays": "^5.1.0",
     "ws": "^8.16.0"
   },
+  
   "files": [
     "dist"
   ]
