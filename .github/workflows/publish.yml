@@ -2,7 +2,7 @@ name: Publish Package
 
 on:
   release:
-    types: [created]
+    types: [published]
   workflow_dispatch:
     inputs:
       release_tag:
@@ -11,7 +11,7 @@ on:
         type: string
 
 permissions:
-  contents: read
+  contents: write
   id-token: write
   packages: write
 
@@ -23,65 +23,13 @@ jobs:
         with:
           ref: ${{ github.event.release.tag_name || github.event.inputs.release_tag }}
 
-      # Remove any existing npmrc files and setup environment
-      - name: Setup environment
-        run: |
-          # Clean existing npmrc files
-          rm -f ~/.npmrc
-          rm -f .npmrc
-          rm -f ~/.npm/.npmrc
-          rm -f /home/runner/work/_temp/.npmrc
-          
-          # Create npm directory
-          mkdir -p /home/runner/.npm
-          
-          # Set environment variables that persist through steps
-          {
-            echo "NPMRC_PATH=/home/runner/.npm/.npmrc"
-            echo "NPM_CONFIG_USERCONFIG=/home/runner/.npm/.npmrc"
-            echo "NPM_CONFIG_REGISTRY=https://registry.npmjs.org"
-            echo "NPM_CONFIG_ALWAYS_AUTH=true"
-          } >> $GITHUB_ENV
-
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9
-          run_install: false
-
-      - name: Setup NPM config
-        run: |
-          # Verify environment
-          echo "NPMRC_PATH is: $NPMRC_PATH"
-          echo "NPM_CONFIG_USERCONFIG is: $NPM_CONFIG_USERCONFIG"
-          
-          # Create the npmrc file
-          {
-            echo "//registry.npmjs.org/:_authToken=\${NODE_AUTH_TOKEN}"
-            echo "registry=https://registry.npmjs.org/"
-            echo "always-auth=true"
-          } > "$NPMRC_PATH"
-          
-          echo "Using npmrc at: $NPMRC_PATH"
-          echo "Current npmrc content (without auth token):"
-          grep -v "_authToken" "$NPMRC_PATH" || true
-
       - uses: actions/setup-node@v4
         with:
           node-version: '21'
-          cache: 'pnpm'
           registry-url: 'https://registry.npmjs.org'
-          always-auth: true
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-    
-      - name: Publish to NPM
-        run: |
-          echo "Publishing to NPM using config at: $NPM_CONFIG_USERCONFIG"
-          echo "Registry: $NPM_CONFIG_REGISTRY"
-          pnpm publish --no-git-checks --access public --provenance
+      - run: npm install
+      - run: npm publish --access public --provenance --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
@@ -93,65 +41,12 @@ jobs:
         with:
           ref: ${{ github.event.release.tag_name || github.event.inputs.release_tag }}
 
-      # Remove any existing npmrc files and setup environment
-      - name: Setup environment
-        run: |
-          # Clean existing npmrc files
-          rm -f ~/.npmrc
-          rm -f .npmrc
-          rm -f ~/.npm/.npmrc
-          rm -f /home/runner/work/_temp/.npmrc
-          
-          # Create npm directory
-          mkdir -p /home/runner/.npm
-          
-          # Set environment variables that persist through steps
-          {
-            echo "NPMRC_PATH=/home/runner/.npm/.npmrc"
-            echo "NPM_CONFIG_USERCONFIG=/home/runner/.npm/.npmrc"
-            echo "NPM_CONFIG_REGISTRY=https://npm.pkg.github.com"
-            echo "NPM_CONFIG_ALWAYS_AUTH=true"
-          } >> $GITHUB_ENV
-
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9
-          run_install: false
-
-      - name: Setup NPM config
-        run: |
-          # Verify environment
-          echo "NPMRC_PATH is: $NPMRC_PATH"
-          echo "NPM_CONFIG_USERCONFIG is: $NPM_CONFIG_USERCONFIG"
-          
-          # Create the npmrc file
-          {
-            echo "//npm.pkg.github.com/:_authToken=\${NODE_AUTH_TOKEN}"
-            echo "@imigueldiaz:registry=https://npm.pkg.github.com"
-            echo "always-auth=true"
-          } > "$NPMRC_PATH"
-          
-          echo "Using npmrc at: $NPMRC_PATH"
-          echo "Current npmrc content (without auth token):"
-          grep -v "_authToken" "$NPMRC_PATH" || true
-
       - uses: actions/setup-node@v4
         with:
           node-version: '21'
-          cache: 'pnpm'
           registry-url: 'https://npm.pkg.github.com'
-          scope: '@imigueldiaz'
-          always-auth: true
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-     
-      - name: Publish to GitHub Packages
-        run: |
-          echo "Publishing to GitHub Packages using config at: $NPM_CONFIG_USERCONFIG"
-          echo "Registry: $NPM_CONFIG_REGISTRY"
-          pnpm publish --no-git-checks --access public --provenance
+      - run: npm install
+      - run: npm publish --access public --provenance --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
