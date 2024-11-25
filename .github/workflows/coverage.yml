@@ -1,36 +1,53 @@
-name: Coverage
+name: Build and Test
+
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
   pull_request:
-    branches: [ main ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
+      # 1. Checkout the repository
+      - name: Checkout Code
+        uses: actions/checkout@v4
         with:
           clean: true
+          fetch-depth: 1
 
-      - name: Use Node.js
+      # 2. Set up Node.js environment
+      - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '22' # Use the Node.js version specified in your project
+          cache: 'npm'       # Enable caching for npm dependencies
 
-      - name: Clean npm cache
+      # 3. Install dependencies
+      - name: Install Dependencies
         run: |
-          npm cache clean --force
-          rm -rf ~/.npm
-          rm -rf node_modules
+          npm install --omit=optional
 
-      - name: Install dependencies
-        run: npm install --omit=optional
+      # 4. Run linting
+      - name: Lint Code
+        run: npm run lint
 
-      - name: Run tests with coverage
-        run: npm run test:coverage
+      # 5. Build the project
+      - name: Build Project
+        run: npm run build
 
-      - name: Upload coverage to Codecov
+      # 6. Run tests
+      - name: Run Tests
+        run: npm test
+
+      # 7. Collect coverage and upload to Codecov
+      - name: Upload Coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage/*.json
+          flags: unittests
+          name: node-tests
+          fail_ci_if_error: true
