@@ -2,7 +2,7 @@ name: Publish Package
 
 on:
   release:
-    types: [created] # Se ejecuta cuando se crea un release en GitHub
+    types: [published]
   workflow_dispatch:
     inputs:
       release_tag:
@@ -10,71 +10,69 @@ on:
         required: true
         type: string
 
+permissions:
+  contents: read
+  id-token: write # Needed for provenance
+  packages: write
+
 jobs:
   publish-npm:
     runs-on: ubuntu-latest
     steps:
-      # Paso 1: Checkout del código
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.release.tag_name || github.event.inputs.release_tag }}
 
-      # Paso 2: Instalar PNPM
       - uses: pnpm/action-setup@v4
         with:
           version: 9
           run_install: false
 
-      # Paso 3: Configurar Node.js con npm
       - uses: actions/setup-node@v4
         with:
           node-version: '21'
           cache: 'pnpm'
           registry-url: 'https://registry.npmjs.org'
-          node-version-file: '.npmrc'
 
-      # Paso 4: Instalar dependencias
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
     
-      # Paso 5: Publicar el paquete en npm
       - name: Publish to NPM
-        shell: bash
         run: pnpm publish --access public --provenance --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_REGISTRY: "https://registry.npmjs.org"
 
   publish-github:
     needs: publish-npm
     runs-on: ubuntu-latest
     steps:
-      # Paso 1: Checkout del código
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.release.tag_name || github.event.inputs.release_tag }}
 
-      # Paso 2: Instalar PNPM
       - uses: pnpm/action-setup@v4
         with:
           version: 9
           run_install: false
 
-      # Paso 3: Configurar Node.js para GitHub Packages
       - uses: actions/setup-node@v4
         with:
           node-version: '21'
           cache: 'pnpm'
           registry-url: 'https://npm.pkg.github.com'
           scope: '@imigueldiaz'
-          node-version-file: '.npmrc'
 
-      # Paso 4: Instalar dependencias
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Create GitHub-specific .npmrc
+        run: |
+          echo "//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}" > .npmrc
+          echo "@imigueldiaz:registry=https://npm.pkg.github.com" >> .npmrc
      
-      # Paso 5: Publicar el paquete en GitHub Packages
       - name: Publish to GitHub Packages
-        shell: bash
         run: pnpm publish --access public --provenance --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_CONFIG_REGISTRY: "https://npm.pkg.github.com"
