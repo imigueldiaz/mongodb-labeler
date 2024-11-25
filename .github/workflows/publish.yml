@@ -28,32 +28,50 @@ jobs:
           version: 9
           run_install: false
 
+      - name: Setup NPM config directory
+        run: |
+          mkdir -p ~/.npm
+          echo "NPM_CONFIG_USERCONFIG=$HOME/.npm/.npmrc" >> $GITHUB_ENV
+
       - uses: actions/setup-node@v4
         with:
           node-version: '21'
           cache: 'pnpm'
           registry-url: 'https://registry.npmjs.org'
+          always-auth: true
+          scope: '@imigueldiaz'
 
-      # Create a clean .npmrc for npm publishing
-      - name: Create .npmrc for NPM publishing
+      # Create a clean .npmrc in the home directory
+      - name: Create global .npmrc
         run: |
-          echo "engine-strict=true" > .npmrc
-          echo "auto-install-peers=true" >> .npmrc
-          echo "shamefully-hoist=true" >> .npmrc
-          echo "//registry.npmjs.org/:_authToken=\${NODE_AUTH_TOKEN}" >> .npmrc
-          echo "registry=https://registry.npmjs.org/" >> .npmrc
+          cat > $HOME/.npm/.npmrc << EOF
+          engine-strict=true
+          auto-install-peers=true
+          shamefully-hoist=true
+          always-auth=true
+          registry=https://registry.npmjs.org/
+          //registry.npmjs.org/:_authToken=\${NODE_AUTH_TOKEN}
+          EOF
           
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
     
       - name: Publish to NPM
         run: |
           echo "Publishing to NPM..."
+          # Verify .npmrc location and content
+          echo "Using .npmrc at: $NPM_CONFIG_USERCONFIG"
+          echo "Current .npmrc content (without auth token):"
+          grep -v "_authToken" $NPM_CONFIG_USERCONFIG || true
           pnpm config set registry https://registry.npmjs.org/
-          pnpm publish --access public --provenance --no-git-checks --registry https://registry.npmjs.org/
+          pnpm config set always-auth true
+          pnpm publish --no-git-checks --access public --provenance --registry https://registry.npmjs.org/
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_CONFIG_REGISTRY: "https://registry.npmjs.org"
+          NPM_CONFIG_ALWAYS_AUTH: "true"
 
   publish-github:
     needs: publish-npm
@@ -68,29 +86,46 @@ jobs:
           version: 9
           run_install: false
 
+      - name: Setup NPM config directory
+        run: |
+          mkdir -p ~/.npm
+          echo "NPM_CONFIG_USERCONFIG=$HOME/.npm/.npmrc" >> $GITHUB_ENV
+
       - uses: actions/setup-node@v4
         with:
           node-version: '21'
           cache: 'pnpm'
           registry-url: 'https://npm.pkg.github.com'
           scope: '@imigueldiaz'
+          always-auth: true
 
-      # Create a clean .npmrc for GitHub publishing
-      - name: Create .npmrc for GitHub publishing
+      # Create a clean .npmrc in the home directory
+      - name: Create global .npmrc
         run: |
-          echo "engine-strict=true" > .npmrc
-          echo "auto-install-peers=true" >> .npmrc
-          echo "shamefully-hoist=true" >> .npmrc
-          echo "//npm.pkg.github.com/:_authToken=\${NODE_AUTH_TOKEN}" >> .npmrc
-          echo "@imigueldiaz:registry=https://npm.pkg.github.com" >> .npmrc
+          cat > $HOME/.npm/.npmrc << EOF
+          engine-strict=true
+          auto-install-peers=true
+          shamefully-hoist=true
+          always-auth=true
+          @imigueldiaz:registry=https://npm.pkg.github.com
+          //npm.pkg.github.com/:_authToken=\${NODE_AUTH_TOKEN}
+          EOF
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
      
       - name: Publish to GitHub Packages
         run: |
           echo "Publishing to GitHub Packages..."
+          # Verify .npmrc location and content
+          echo "Using .npmrc at: $NPM_CONFIG_USERCONFIG"
+          echo "Current .npmrc content (without auth token):"
+          grep -v "_authToken" $NPM_CONFIG_USERCONFIG || true
           pnpm config set registry https://npm.pkg.github.com/
-          pnpm publish --access public --provenance --no-git-checks
+          pnpm config set always-auth true
+          pnpm publish --no-git-checks --access public --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_CONFIG_ALWAYS_AUTH: "true"
