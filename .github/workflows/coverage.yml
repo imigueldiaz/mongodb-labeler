@@ -23,21 +23,22 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22' # Asegura usar la versión requerida
-          cache: 'npm'
 
-      # 3. Install Dependencies (exclude problematic optional dependencies)
+      - name: Clean npm cache
+        run: |
+          npm cache clean --force
+          rm -rf ~/.npm
+          rm -rf node_modules
+
+      # 3. Install Dependencies
       - name: Install Dependencies
         run: |
-          npm ci --omit=optional || npm install --omit=optional
-
-      # 4. Optional: Reinstall problematic dependency manually if required
-      - name: Attempt Manual Installation of dprint (optional)
-        run: npm install @dprint/linux-x64-glibc || echo "Skipping optional dependency"
+          npm install
 
       # 5. Run linting
       - name: Lint Code
-        run: npm run lint || echo "Linting failed but will not stop the workflow"
-
+        run: npm run lint
+        
       # 6. Build the project
       - name: Build Project
         run: npm run build
