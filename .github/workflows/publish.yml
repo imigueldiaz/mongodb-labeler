@@ -2,7 +2,7 @@ name: Publish Package
 
 on:
   release:
-    types: [published]
+    types: [created]
   workflow_dispatch:
     inputs:
       release_tag:
@@ -34,25 +34,26 @@ jobs:
           cache: 'pnpm'
           registry-url: 'https://registry.npmjs.org'
 
-      # Create a complete .npmrc for npm publishing
+      # Create a clean .npmrc for npm publishing
       - name: Create .npmrc for NPM publishing
         run: |
-          cat > .npmrc << EOF
-          engine-strict=true
-          auto-install-peers=true
-          shamefully-hoist=true
+          echo "engine-strict=true" > .npmrc
+          echo "auto-install-peers=true" >> .npmrc
+          echo "shamefully-hoist=true" >> .npmrc
+          echo "//registry.npmjs.org/:_authToken=\${NODE_AUTH_TOKEN}" >> .npmrc
+          echo "registry=https://registry.npmjs.org/" >> .npmrc
           
-          //registry.npmjs.org/:_authToken=\${NODE_AUTH_TOKEN}
-          registry=https://registry.npmjs.org/
-          EOF
-
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
     
       - name: Publish to NPM
-        run: pnpm publish --access public --provenance --no-git-checks
+        run: |
+          echo "Publishing to NPM..."
+          pnpm config set registry https://registry.npmjs.org/
+          pnpm publish --access public --provenance --no-git-checks --registry https://registry.npmjs.org/
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_REGISTRY: "https://registry.npmjs.org"
 
   publish-github:
     needs: publish-npm
@@ -74,22 +75,22 @@ jobs:
           registry-url: 'https://npm.pkg.github.com'
           scope: '@imigueldiaz'
 
-      # Create a complete .npmrc for GitHub publishing
+      # Create a clean .npmrc for GitHub publishing
       - name: Create .npmrc for GitHub publishing
         run: |
-          cat > .npmrc << EOF
-          engine-strict=true
-          auto-install-peers=true
-          shamefully-hoist=true
-          
-          //npm.pkg.github.com/:_authToken=\${NODE_AUTH_TOKEN}
-          @imigueldiaz:registry=https://npm.pkg.github.com
-          EOF
+          echo "engine-strict=true" > .npmrc
+          echo "auto-install-peers=true" >> .npmrc
+          echo "shamefully-hoist=true" >> .npmrc
+          echo "//npm.pkg.github.com/:_authToken=\${NODE_AUTH_TOKEN}" >> .npmrc
+          echo "@imigueldiaz:registry=https://npm.pkg.github.com" >> .npmrc
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
      
       - name: Publish to GitHub Packages
-        run: pnpm publish --access public --provenance --no-git-checks
+        run: |
+          echo "Publishing to GitHub Packages..."
+          pnpm config set registry https://npm.pkg.github.com/
+          pnpm publish --access public --provenance --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

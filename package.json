@@ -34,7 +34,8 @@
     ".": "./dist/index.js"
   },
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   },
   "devDependencies": {
     "@atproto/common": "^0.4.4",
