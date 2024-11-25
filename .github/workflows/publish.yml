@@ -28,7 +28,6 @@ jobs:
         with:
           node-version: '21'
           registry-url: 'https://registry.npmjs.org'
-          auth-token: ${{ secrets.NPM_TOKEN }}
 
       # Paso 3: Instalar PNPM
       - uses: pnpm/action-setup@v4
@@ -63,7 +62,7 @@ jobs:
         with:
           node-version: '21'
           registry-url: 'https://npm.pkg.github.com'
-          auth-token: ${{ secrets.GITHUB_TOKEN }}
+          scope: '@imigueldiaz'
 
       # Paso 3: Instalar PNPM
       - uses: pnpm/action-setup@v4
