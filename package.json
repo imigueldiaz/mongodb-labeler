@@ -26,6 +26,7 @@
     "lint": "eslint . --ext .ts",
     "fmt": "dprint fmt",
     "prepare": "npm run lint && npm run fmt && npm run build",
+    "prepublish": "",
     "test": "jest --config jest.config.cjs",
     "test:watch": "jest --config jest.config.cjs --watch",
     "test:coverage": "jest --config jest.config.cjs --coverage"
