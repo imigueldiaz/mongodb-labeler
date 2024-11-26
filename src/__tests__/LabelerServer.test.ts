@@ -2,7 +2,7 @@ import { type Collection, MongoClient } from "mongodb";
 import { MongoMemoryServer } from "mongodb-memory-server";
 import { LabelerServer } from "../LabelerServer";
 import type { LabelerOptions } from "../LabelerServer.js";
-import type { SavedLabel, UnsignedLabel } from "../util/types.js";
+import type { SavedLabel, UnsignedLabel, CreateLabelData } from "../util/types.js";
 
 const TEST_TIMEOUT = 35000;
 const SETUP_TIMEOUT = 120000; // 2 minutos para la descarga del servidor
@@ -115,6 +115,52 @@ describe("LabelerServer", () => {
     });
   });
 
+  describe("Server Initialization", () => {
+    it("should handle different configurations", async () => {
+      // Test with minimum required options
+      const minServer = new LabelerServer({
+        did: 'did:example:123',
+        signingKey: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        mongoUri: 'mongodb://localhost:27017'
+      });
+      
+      await expect(minServer.getInitializationPromise()).resolves.not.toThrow();
+      
+      // Test with custom database and collection names
+      const customServer = new LabelerServer({
+        did: 'did:example:123',
+        signingKey: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        mongoUri: 'mongodb://localhost:27017',
+        databaseName: 'custom_db',
+        collectionName: 'custom_labels'
+      });
+      
+      await expect(customServer.getInitializationPromise()).resolves.not.toThrow();
+    });
+
+    it("should handle invalid configurations", async () => {
+      // Test with invalid signing key
+      await expect(async () => {
+        const server = new LabelerServer({
+          did: 'did:example:123',
+          signingKey: 'invalid_key',
+          mongoUri: 'mongodb://localhost:27017'
+        });
+        await server.getInitializationPromise();
+      }).rejects.toThrow();
+      
+      // Test with missing required parameters
+      await expect(async () => {
+        const server = new LabelerServer({
+          did: 'did:example:123',
+          signingKey: '',
+          mongoUri: 'mongodb://localhost:27017'
+        });
+        await server.getInitializationPromise();
+      }).rejects.toThrow();
+    });
+  });
+
   describe("Label Operations", () => {
     it("should create label with expiration", async () => {
       const expDate = new Date();
@@ -178,6 +224,185 @@ describe("LabelerServer", () => {
 
         await expect(server.reverseLabelNegation(1)).rejects.toThrow("Failed to reverse label negation");
       });
+    });
+  });
+
+  describe("Label Expiration", () => {
+    it("should handle expired labels correctly", async () => {
+      const expDate = new Date();
+      expDate.setDate(expDate.getDate() - 1); // Set expiration to yesterday
+      
+      const labelData: CreateLabelData = {
+        uri: "at://test.com/123",
+        cid: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
+        val: "test",
+        neg: false,
+        exp: expDate.toISOString()
+      };
+      
+      await server.createLabel(labelData);
+      const labels = await server.queryLabels();
+      expect(labels.length).toBe(0); // Should not return expired labels
+    });
+  });
+
+  describe("Additional Tests", () => {
+    // Helper function to create a server instance
+    async function createServer(): Promise<LabelerServer> {
+      const server = new LabelerServer(options);
+      await server.db.connect();
+      return server;
+    }
+
+    it('should handle label validation errors', async () => {
+      const server = await createServer();
+      await server.getInitializationPromise();
+
+      const invalidLabel = {
+        val: 'test',
+        uri: 'invalid-uri', // Invalid URI format
+        cid: 'invalid-cid', // Invalid CID format
+        src: 'did:test:123' as `did:${string}`,
+      };
+
+      await expect(server.createLabel(invalidLabel)).rejects.toThrow('Invalid URI format');
+    });
+
+    it('should handle initialization errors', async () => {
+      const invalidConfig: LabelerOptions = {
+        ...options,
+        signingKey: 'invalid-key'
+      };
+
+      const server = new LabelerServer(invalidConfig);
+      await expect(server.getInitializationPromise()).rejects.toThrow('Failed to initialize signer');
+    });
+
+    it('should handle database errors in label operations', async () => {
+      const server = await createServer();
+      await server.getInitializationPromise();
+
+      // Mock database error
+      const mockDb = {
+        findOne: jest.fn().mockRejectedValue(new Error('Database error')),
+        findLabels: jest.fn().mockRejectedValue(new Error('Database error')),
+      };
+
+      Object.defineProperty(server, 'db', {
+        value: mockDb,
+        writable: true,
+        configurable: true
+      });
+
+      // Test queryLabel
+      await expect(server.queryLabel(1)).rejects.toThrow('Failed to query label');
+
+      // Test queryLabels
+      await expect(server.queryLabels()).rejects.toThrow('Failed to query labels');
+
+      // Test deleteLabel
+      await expect(server.deleteLabel(1)).rejects.toThrow('Failed to delete label');
+    });
+
+    it('should handle errors in reverseLabelNegation', async () => {
+      const server = await createServer();
+      await server.getInitializationPromise();
+
+      // Test with non-existent label
+      const result = await server.reverseLabelNegation(999);
+      expect(result).toBeNull();
+
+      // Test with database error
+      const mockDb = {
+        findOne: jest.fn().mockRejectedValue(new Error('Database error')),
+      };
+
+      Object.defineProperty(server, 'db', {
+        value: mockDb,
+        writable: true,
+        configurable: true
+      });
+
+      await expect(server.reverseLabelNegation(1)).rejects.toThrow('Failed to reverse label negation');
+    });
+
+    it("should handle non-array response in queryLabels", async () => {
+      const server = await createServer();
+      await server.getInitializationPromise();
+
+      // Mock findLabels to return a non-array value
+      jest.spyOn(server.db, "findLabels").mockResolvedValue({} as unknown as Promise<SavedLabel[]>);
+
+      await expect(server.queryLabels()).rejects.toThrow("Failed to query labels");
+    });
+
+    it("should handle signing failures in createLabel", async () => {
+      const server = await createServer();
+      await server.getInitializationPromise();
+
+      // Mock the signer to fail
+      Object.defineProperty(server, "_signer", {
+        value: {
+          sign: jest.fn().mockRejectedValue(new Error("Signing failed")),
+        },
+        writable: true,
+      });
+
+      const validLabel: CreateLabelData = {
+        val: "test",
+        uri: "at://user.bsky.social/app.bsky.feed.post/3jxtb5w2g622y",
+        cid: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
+        neg: false,
+      };
+
+      await expect(server.createLabel(validLabel)).rejects.toThrow("Failed to create label");
+    });
+
+    it("should handle errors when saving negated label in deleteLabel", async () => {
+      const server = await createServer();
+      await server.getInitializationPromise();
+
+      // Mock findOne to return a label and saveLabel to fail
+      jest.spyOn(server.db, "findOne").mockResolvedValue({
+        id: 1,
+        val: "test",
+        uri: "at://test.com",
+        cid: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
+        neg: false,
+        cts: new Date().toISOString(),
+        src: "did:web:test.com",
+        sig: new ArrayBuffer(0),
+      });
+
+      jest.spyOn(server.db, "saveLabel").mockRejectedValue(new Error("Save failed"));
+
+      await expect(server.deleteLabel(1)).rejects.toThrow("Failed to save negated label to database");
+    });
+
+    it("should handle errors when signing negated label in deleteLabel", async () => {
+      const server = await createServer();
+      await server.getInitializationPromise();
+
+      // Mock findOne to return a label and signer to fail
+      jest.spyOn(server.db, "findOne").mockResolvedValue({
+        id: 1,
+        val: "test",
+        uri: "at://test.com",
+        cid: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
+        neg: false,
+        cts: new Date().toISOString(),
+        src: "did:web:test.com",
+        sig: new ArrayBuffer(0),
+      });
+
+      Object.defineProperty(server, "_signer", {
+        value: {
+          sign: jest.fn().mockRejectedValue(new Error("Signing failed")),
+        },
+        writable: true,
+      });
+
+      await expect(server.deleteLabel(1)).rejects.toThrow("Failed to delete label");
     });
   });
 });

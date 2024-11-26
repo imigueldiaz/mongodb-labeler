@@ -125,8 +125,21 @@ export class MongoDBClient {
    * @returns A promise that resolves to an array of labels matching the query.
    */
   async findLabels(query: Filter<SavedLabel>, options: FindOptions<SavedLabel> = {}): Promise<SavedLabel[]> {
+    if (!this._labels) {
+      return [];
+    }
+
     try {
-      return this._labels?.find(query, options).toArray() ?? [];
+      // Filtrar etiquetas expiradas
+      const now = new Date().toISOString();
+      const finalQuery = {
+        ...query,
+        $or: [
+          { exp: { $exists: false } },
+          { exp: { $gt: now } }
+        ]
+      };
+      return await this._labels.find(finalQuery, options).toArray();
     } catch (error) {
       throw new Error(
         `Failed to find labels: ${error instanceof Error ? error.message : String(error)}`,
@@ -141,8 +154,12 @@ export class MongoDBClient {
    * @returns A promise that resolves to the matching label or null if not found.
    */
   async findOne(query: Filter<SavedLabel>): Promise<SavedLabel | null> {
+    if (!this._labels) {
+      return null;
+    }
+
     try {
-      return this._labels?.findOne(query) ?? null;
+      return await this._labels.findOne(query);
     } catch (error) {
       throw new Error(
         `Failed to find label: ${error instanceof Error ? error.message : String(error)}`,
