@@ -2,7 +2,7 @@
 
 [![npm version](https://img.shields.io/npm/v/@imigueldiaz/mongodb-labeler.svg)](https://www.npmjs.com/package/@imigueldiaz/mongodb-labeler)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![PNPM](https://img.shields.io/badge/pnpm-%234a4a4a.svg?style=flat&logo=pnpm&logoColor=f69220)](https://pnpm.io/)
+[![NPM](https://img.shields.io/badge/npm-%23CB3837.svg?style=flat&logo=npm&logoColor=white)](https://www.npmjs.com/)
 [![Jest](https://img.shields.io/badge/tested_with-jest-%23C21325?logo=jest)](https://jestjs.io/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-%23007ACC.svg?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![AT Protocol](https://img.shields.io/badge/AT_Protocol-compatible-blue)](https://atproto.com/)
@@ -34,9 +34,13 @@ This project is a fork of [@skyware/labeler](https://github.com/skyware-js/label
 
 ```bash
 npm install @imigueldiaz/mongodb-labeler
-# or using pnpm
-pnpm install @imigueldiaz/mongodb-labeler
 ```
+
+### Requirements
+
+- Node.js 22 or higher
+- MongoDB 4.4 or higher
+- npm (Node Package Manager)
 
 ## Usage
 
@@ -128,13 +132,13 @@ To set up the development environment:
 git clone https://github.com/imigueldiaz/mongodb-labeler.git
 
 # Install dependencies
-pnpm install
+npm install
 
 # Run tests
-pnpm test
+npm test
 
 # Build the project
-pnpm build
+npm run build
 ```
 
 ## Contributing

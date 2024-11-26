@@ -8,7 +8,9 @@ export default [
       'dist/**',
       'node_modules/**',
       'jest.config.cjs',
-      'coverage/**'
+      'coverage/**',
+      'jest.setup.ts',
+      'jest-mongodb-config.cjs'
     ]
   },
   // Base TypeScript configuration
