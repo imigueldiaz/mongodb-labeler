@@ -124,21 +124,27 @@ export class MongoDBClient {
    * @param options - Optional settings for the query, such as sort and limit.
    * @returns A promise that resolves to an array of labels matching the query.
    */
-  async findLabels(query: Filter<SavedLabel>, options: FindOptions<SavedLabel> = {}): Promise<SavedLabel[]> {
+  async findLabels(query: Filter<SavedLabel> & { allowExpired?: boolean } = {}, options: FindOptions<SavedLabel> = {}): Promise<SavedLabel[]> {
     if (!this._labels) {
       return [];
     }
 
     try {
-      // Filtrar etiquetas expiradas
-      const now = new Date().toISOString();
-      const finalQuery = {
-        ...query,
-        $or: [
-          { exp: { $exists: false } },
-          { exp: { $gt: now } }
-        ]
-      };
+      const { allowExpired, ...restQuery } = query;
+      let finalQuery = restQuery;
+
+      // Solo filtrar etiquetas expiradas si allowExpired es false
+      if (!allowExpired) {
+        const now = new Date().toISOString();
+        finalQuery = {
+          ...restQuery,
+          $or: [
+            { exp: { $exists: false } },
+            { exp: { $gt: now } }
+          ]
+        };
+      }
+
       return await this._labels.find(finalQuery, options).toArray();
     } catch (error) {
       throw new Error(

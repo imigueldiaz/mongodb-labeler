@@ -1,7 +1,7 @@
 import { Secp256k1Keypair } from "@atproto/crypto";
 import { MongoDBClient } from "./mongodb.js";
 import { CreateLabelData, SavedLabel, SignedLabel, UnsignedLabel } from "./util/types.js";
-import { AtProtocolValidationError, validateAtUri, validateCid, validateDid, validateVal } from "./util/validators.js";
+import { AtProtocolValidationError, validateAtUri, validateCid, validateDid, validateVal, validateCts, validateExp } from "./util/validators.js";
 
 /**
  * Error class for LabelerServer operations
@@ -150,28 +150,36 @@ export class LabelerServer {
    * the label using the server's signing key and saves it to the database.
    *
    * @param data - The data required to create a label.
+   * @param allowExpired - Whether to allow expired timestamps
    * @returns A promise that resolves to the signed label.
    * @throws {LabelerServerError} If validation fails or label creation fails
    */
-  async createLabel(data: CreateLabelData): Promise<SignedLabel> {
+  async createLabel(data: CreateLabelData, allowExpired: boolean = false): Promise<SignedLabel> {
     try {
       await this.getInitializationPromise();
 
       // Validate label value
       validateVal(data.val);
 
-      if (data.uri) {
-        try {
-          validateAtUri(data.uri);
-        } catch (error) {
-          throw new LabelerServerError(
-            "Invalid URI format",
-            error instanceof Error ? error : new Error(String(error)),
-          );
-        }
-      }
+      // Validate URI
+      validateAtUri(data.uri);
+
+      // Validate CID if provided
       if (data.cid) {
         validateCid(data.cid);
+      }
+
+      // Validate source DID if provided
+      if (data.src) {
+        validateDid(data.src);
+      }
+
+      // Generate current timestamp if not provided
+      const cts = data.cts ?? new Date().toISOString();
+      // Validate timestamps
+      validateCts(cts);
+      if (data.exp) {
+        validateExp(data.exp, allowExpired);
       }
 
       const unsignedLabel: UnsignedLabel = {
@@ -180,10 +188,11 @@ export class LabelerServer {
         cid: data.cid,
         neg: data.neg ?? false,
         exp: data.exp,
-        cts: data.cts ?? new Date().toISOString(),
-        src: data.src ?? this._did,
+        cts,
+        src: data.src ?? this.did,
       };
 
+      // Sign the label
       const sig = await this._signer.sign(Buffer.from(JSON.stringify(unsignedLabel)));
       const signedLabel: SignedLabel = { ...unsignedLabel, sig: new Uint8Array(sig) };
       const savedLabel: SavedLabel = {
@@ -192,20 +201,10 @@ export class LabelerServer {
         id: this._nextId++,
       };
 
-      try {
-        await this.db.saveLabel(savedLabel);
-      } catch (error) {
-        throw new LabelerServerError(
-          "Failed to save label to database",
-          error instanceof Error ? error : new Error(String(error)),
-        );
-      }
+      await this.db.saveLabel(savedLabel);
 
       return signedLabel;
     } catch (error) {
-      if (error instanceof LabelerServerError) {
-        throw error;
-      }
       if (error instanceof AtProtocolValidationError) {
         throw new LabelerServerError(`Label validation failed: ${error.message}`, error);
       }
@@ -219,29 +218,38 @@ export class LabelerServer {
   /**
    * Query all labels from the database.
    *
-   * @returns A promise that resolves to an array of signed labels.
+   * @param query - Optional query parameters
+   * @returns A promise that resolves to an array of signed labels
    * @throws {LabelerServerError} If the query operation fails
    */
-  async queryLabels(): Promise<SignedLabel[]> {
+  async queryLabels(query?: { exp?: string; allowExpired?: boolean }): Promise<SignedLabel[]> {
     try {
       await this.getInitializationPromise();
-      const labels = await this.db.findLabels({});
+      // Validate expiration timestamp if present
+      if (query?.exp) {
+        validateExp(query.exp, query.allowExpired);
+      }
+
+      const labels = await this.db.findLabels(query || {});
 
       if (!Array.isArray(labels)) {
         throw new Error("Invalid response from database");
       }
 
-      return labels.map(label => ({
-        val: label.val,
-        uri: label.uri,
-        cid: label.cid,
-        neg: label.neg,
-        exp: label.exp,
-        cts: label.cts,
-        src: label.src,
-        sig: new Uint8Array(label.sig),
+      // Filter out expired labels if allowExpired is not true
+      const filteredLabels = !query?.allowExpired
+        ? labels.filter(label => !label.exp || new Date(label.exp) > new Date())
+        : labels;
+
+      // Convert ArrayBuffer to Uint8Array for the signature
+      return filteredLabels.map(label => ({
+        ...label,
+        sig: new Uint8Array(label.sig)
       }));
     } catch (error) {
+      if (error instanceof AtProtocolValidationError) {
+        throw new LabelerServerError(`Label validation failed: ${error.message}`, error);
+      }
       throw new LabelerServerError(
         "Failed to query labels",
         error instanceof Error ? error : new Error(String(error)),
@@ -304,8 +312,12 @@ export class LabelerServer {
         return null;
       }
 
-      // Validate the label value before creating a new negated label
+      // Validate the label value and timestamps before creating a new negated label
       validateVal(label.val);
+      validateCts(label.cts);
+      if (label.exp) {
+        validateExp(label.exp);
+      }
 
       const unsignedLabel: UnsignedLabel = {
         val: label.val,
@@ -371,8 +383,12 @@ export class LabelerServer {
       }
       const label = labels[0];
 
-      // Validate the label value before creating a new one
+      // Validate the label value and timestamps before creating a new one
       validateVal(label.val);
+      validateCts(label.cts);
+      if (label.exp) {
+        validateExp(label.exp);
+      }
 
       const unsignedLabel: UnsignedLabel = {
         val: label.val,

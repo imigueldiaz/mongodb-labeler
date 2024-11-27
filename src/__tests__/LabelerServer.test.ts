@@ -196,7 +196,7 @@ describe("LabelerServer", () => {
         id: 1,
         val: "test-label",
         uri: "at://test.com",
-        cid: "bafyreidfayvfuwqa7qlnopkwu64bkizzbj3pdw5kaewd7a6d66t7iulpce",
+        cid: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
         neg: false,
         src: "did:web:test.com",
         cts: new Date().toISOString(),
@@ -229,20 +229,97 @@ describe("LabelerServer", () => {
 
   describe("Label Expiration", () => {
     it("should handle expired labels correctly", async () => {
-      const expDate = new Date();
-      expDate.setDate(expDate.getDate() - 1); // Set expiration to yesterday
+      // Create a label with an expiration date in the future
+      const futureDate = new Date();
+      futureDate.setDate(futureDate.getDate() + 1); // Set expiration to tomorrow
       
       const labelData: CreateLabelData = {
         uri: "at://test.com/123",
         cid: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
-        val: "test",
+        val: "test-future",
         neg: false,
-        exp: expDate.toISOString()
+        exp: futureDate.toISOString()
       };
       
-      await server.createLabel(labelData);
-      const labels = await server.queryLabels();
-      expect(labels.length).toBe(0); // Should not return expired labels
+      // Create the label
+      const validLabel = await server.createLabel(labelData);
+      expect(validLabel).toBeDefined();
+      expect(validLabel.exp).toBe(futureDate.toISOString());
+      
+      // Verify it's queryable
+      let labels = await server.queryLabels();
+      expect(labels.length).toBe(1);
+      expect(labels[0].exp).toBe(futureDate.toISOString());
+      
+      // Now try to create a label with a past expiration date
+      const pastDate = new Date();
+      pastDate.setDate(pastDate.getDate() - 1); // Set expiration to yesterday
+      
+      const expiredLabelData: CreateLabelData = {
+        ...labelData,
+        uri: "at://test.com/456",
+        val: "test-expired",
+        exp: pastDate.toISOString()
+      };
+      
+      // Should throw when trying to create an expired label without allowExpired
+      await expect(server.createLabel(expiredLabelData)).rejects.toThrow("Label validation failed: Expiration timestamp must be in the future");
+      
+      // Should be able to create expired label with allowExpired
+      const expiredLabel = await server.createLabel(expiredLabelData, true);
+      expect(expiredLabel).toBeDefined();
+      expect(expiredLabel.exp).toBe(pastDate.toISOString());
+      
+      // Query should return both labels when allowExpired is true
+      labels = await server.queryLabels({ allowExpired: true });
+      expect(labels.length).toBe(2);
+      expect(labels.some(l => l.exp === futureDate.toISOString())).toBe(true);
+      expect(labels.some(l => l.exp === pastDate.toISOString())).toBe(true);
+      
+      // Query should only return non-expired label by default
+      labels = await server.queryLabels();
+      expect(labels.length).toBe(1);
+      expect(labels[0].exp).toBe(futureDate.toISOString());
+    });
+
+    it("should handle expired labels in queryLabels", async () => {
+      // Create a label with an expiration date in the future
+      const futureDate = new Date();
+      futureDate.setDate(futureDate.getDate() + 1); // Set expiration to tomorrow
+      
+      const validLabel = await server.createLabel({
+        uri: "at://test.com/123",
+        cid: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
+        val: "test-future",
+        neg: false,
+        exp: futureDate.toISOString()
+      });
+
+      // Create an expired label
+      const pastDate = new Date();
+      pastDate.setDate(pastDate.getDate() - 1); // Set expiration to yesterday
+      
+      const expiredLabel = await server.createLabel({
+        uri: "at://test.com/456",
+        cid: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
+        val: "test-expired",
+        neg: false,
+        exp: pastDate.toISOString()
+      }, true);
+
+      // Query with specific expiration date should work with allowExpired
+      let labels = await server.queryLabels({ exp: pastDate.toISOString(), allowExpired: true });
+      expect(labels.length).toBe(1);
+      expect(labels[0].exp).toBe(pastDate.toISOString());
+
+      // Query with future expiration date should work
+      labels = await server.queryLabels({ exp: futureDate.toISOString() });
+      expect(labels.length).toBe(1);
+      expect(labels[0].exp).toBe(futureDate.toISOString());
+
+      // Query with past expiration date should throw without allowExpired
+      await expect(server.queryLabels({ exp: pastDate.toISOString() }))
+        .rejects.toThrow("Label validation failed: Expiration timestamp must be in the future");
     });
   });
 
@@ -265,7 +342,7 @@ describe("LabelerServer", () => {
         src: 'did:test:123' as `did:${string}`,
       };
 
-      await expect(server.createLabel(invalidLabel)).rejects.toThrow('Invalid URI format');
+      await expect(server.createLabel(invalidLabel)).rejects.toThrow('Label validation failed: Invalid AT Protocol URI: must start with "at://"');
     });
 
     it('should handle initialization errors', async () => {
@@ -295,7 +372,7 @@ describe("LabelerServer", () => {
       });
 
       // Test queryLabel
-      await expect(server.queryLabel(1)).rejects.toThrow('Failed to query label');
+      await expect(server.queryLabels()).rejects.toThrow('Failed to query labels');
 
       // Test queryLabels
       await expect(server.queryLabels()).rejects.toThrow('Failed to query labels');
