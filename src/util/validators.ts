@@ -1,8 +1,8 @@
 // @ts-nocheck
 import { AtUri } from "@atproto/syntax";
-import * as CIDModule from 'multiformats/cid'
+import * as cidModule from 'multiformats/cid'
 
-const CID = CIDModule.CID;
+const CID = cidModule.CID;
 
 /**
  * Custom error for AT Protocol validation failures
@@ -107,7 +107,7 @@ export function validateCid(cidStr: string): void {
   try {
     // Usamos el parser de CID para la validación real
     CID.parse(cidStr);
-  } catch (error) {
+  } catch {
     throw new AtProtocolValidationError("Invalid CID format");
   }
 }
