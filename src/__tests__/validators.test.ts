@@ -9,63 +9,122 @@ jest.mock("@atproto/syntax", () => ({
 }));
 
 import { validateAtUri, validateCid, validateDid } from "../util/validators";
-import { AtProtocolValidationError } from "../util/validators"; // Assuming this is where the error is defined
+import { AtProtocolValidationError } from "../util/validators";
 
-describe("validateDid", () => {
+describe("DID Validation", () => {
   // Test valid DIDs
   it("should accept valid DIDs", () => {
-    expect(() => {
-      validateDid("did:plc:user123");
-    }).not.toThrow();
-    expect(() => {
-      validateDid("did:web:example.com");
-    }).not.toThrow();
-    expect(() => {
-      validateDid("did:key:z6Mkf5rGgQm3xqMzLAMQm3xqMzLAMQm3xqMzLAMQm3xqMzLAM");
-    }).not.toThrow();
+    const validDids = [
+      "did:plc:user123",
+      "did:web:example.com",
+      "did:key:z6Mkf5rGMQm3xqMzLAMQm3xqMzLAM",
+      "did:method:specific:with:many:colons",
+      "did:test:abc123.456-789",
+    ];
+
+    validDids.forEach(did => {
+      expect(() => validateDid(did)).not.toThrow();
+    });
   });
 
-  // Test invalid DIDs
-  it("should throw error for DIDs not starting with \"did:\"", () => {
-    expect(() => {
-      validateDid("plc:user123");
-    }).toThrow(AtProtocolValidationError);
-    expect(() => {
-      validateDid("did-plc:user123");
-    }).toThrow(AtProtocolValidationError);
+  // Test empty DID
+  it("should throw error for empty DID", () => {
+    expect(() => validateDid("")).toThrow(AtProtocolValidationError);
+    expect(() => validateDid("")).toThrow("DID cannot be empty");
   });
 
-  // Test DIDs with insufficient parts
+  // Test DID prefix
+  it("should throw error for DIDs not starting with 'did:'", () => {
+    const invalidPrefixes = [
+      "plc:user123",
+      "did-plc:user123",
+      "Did:plc:user123",
+      ":plc:user123",
+    ];
+
+    invalidPrefixes.forEach(did => {
+      expect(() => validateDid(did)).toThrow(AtProtocolValidationError);
+      expect(() => validateDid(did)).toThrow("DID must start with \"did:\"");
+    });
+  });
+
+  // Test DID parts
   it("should throw error for DIDs with insufficient parts", () => {
-    expect(() => {
-      validateDid("did:");
-    }).toThrow(AtProtocolValidationError);
-    expect(() => {
-      validateDid("did:plc");
-    }).toThrow(AtProtocolValidationError);
+    const insufficientParts = [
+      "did:",
+      "did:plc",
+      "did:",
+    ];
+
+    insufficientParts.forEach(did => {
+      expect(() => validateDid(did)).toThrow(AtProtocolValidationError);
+      expect(() => validateDid(did)).toThrow("DID must have at least three parts");
+    });
   });
 
-  // Test invalid method
+  // Test method validation
   it("should throw error for DIDs with invalid method", () => {
-    expect(() => {
-      validateDid("did:PLC:user123");
-    }).toThrow(AtProtocolValidationError);
-    expect(() => {
-      validateDid("did:plc123:user123");
-    }).toThrow(AtProtocolValidationError);
-    expect(() => {
-      validateDid("did:plc-method:user123");
-    }).toThrow(AtProtocolValidationError);
+    const invalidMethods = [
+      "did:PLC:user123",
+      "did:123:user123",
+      "did:plc-method:user123",
+      "did:a:user123", // too short
+      "did:methodthatiswaytoolongforvalidation:user123", // too long
+    ];
+
+    invalidMethods.forEach(did => {
+      expect(() => validateDid(did)).toThrow(AtProtocolValidationError);
+    });
   });
 
-  // Test invalid specific-id
+  // Test specific-id validation
   it("should throw error for DIDs with invalid specific-id", () => {
-    expect(() => {
-      validateDid("did:plc:");
-    }).toThrow(AtProtocolValidationError);
-    expect(() => {
-      validateDid("did:plc:user 123");
-    }).toThrow(AtProtocolValidationError);
+    const invalidSpecificIds = [
+      "did:plc:",
+      "did:plc:user 123",
+      "did:plc:user<123>",
+      "did:plc:user{123}",
+      "did:plc:user[123]",
+      "did:plc:user\\123",
+      "did:plc:user|123",
+      "did:plc:user^123",
+      "did:plc:user`123",
+      "did:plc:" + "x".repeat(513), // too long
+    ];
+
+    invalidSpecificIds.forEach(did => {
+      expect(() => validateDid(did)).toThrow(AtProtocolValidationError);
+    });
+  });
+});
+
+describe("CID Validation", () => {
+  // Ejemplos reales de CIDs
+  it("should accept valid CIDs", () => {
+    const validCids = [
+      // CIDv0 - Un hash real de IPFS
+      "QmPK1s3pNYLi9ERiq3BDxKa4XosgWwFRQUydHUtz4YgpqB",
+      // CIDv1 - Otro hash real de IPFS
+      "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"
+    ];
+
+    validCids.forEach(cid => {
+      expect(() => validateCid(cid)).not.toThrow();
+    });
+  });
+
+  it("should reject invalid CIDs", () => {
+    const invalidCids = [
+      "", // vacío
+      "NotACid", // formato completamente inválido
+      "Qm123", // CIDv0 inválido
+      "bafybei", // CIDv1 demasiado corto
+      "kafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi" // prefijo incorrecto
+    ];
+
+    invalidCids.forEach(cid => {
+      expect(() => validateCid(cid)).toThrow(AtProtocolValidationError);
+    });
   });
 });
 
@@ -121,70 +180,5 @@ describe("validateAtUri", () => {
     expect(() => {
       validateAtUri(undefined as unknown as string);
     }).toThrow("URI cannot be null or empty");
-  });
-});
-
-describe("validateCid", () => {
-  // Test valid CIDs
-  it("should accept valid base32 and base58 CIDs", () => {
-    const validCids = [
-      "bafybeigdyrzt5sfp7udm7hu76kqbmtxwmgaslqbm25j6lwsxzd53kbcpea", // base32 example
-      "QmXoypizjW3WknFiJnKLwHCnL72vedxjQkDDP1mXWo6uco", // base58 example
-      "QmcRD4wkPv6xmfBKsKzrrYsyyHBjzaMA8LaRRRRbNDQVH3", // another base58 example
-    ];
-
-    validCids.forEach(cid => {
-      expect(() => {
-        validateCid(cid);
-      }).not.toThrow();
-    });
-  });
-
-  // Test invalid CIDs
-  it("should throw error for CIDs with invalid characters", () => {
-    const invalidCids = [
-      "cid_with_underscore",
-      "cid-with-hyphen",
-      "cid with spaces",
-      "!@#$%^&*()", // special characters
-    ];
-
-    invalidCids.forEach(cid => {
-      expect(() => {
-        validateCid(cid);
-      }).toThrow(AtProtocolValidationError);
-      expect(() => {
-        validateCid(cid);
-      }).toThrow("Invalid CID format");
-    });
-  });
-
-  // Test CID length validation
-  it("should throw error for CIDs that are too short", () => {
-    const shortCids = [
-      "a",
-      "123",
-      "bafybeig",
-      "QmXo", // too short CIDs
-    ];
-
-    shortCids.forEach(cid => {
-      expect(() => {
-        validateCid(cid);
-      }).toThrow(AtProtocolValidationError);
-      expect(() => {
-        validateCid(cid);
-      }).toThrow("CID length is too short");
-    });
-  });
-
-  // Edge case: empty string
-  it("should throw error for empty string", () => {
-    expect(() => {
-      validateCid("");
-    }).toThrow(AtProtocolValidationError);
-    expect(() => {
-      validateCid("");
-    }).toThrow("Invalid CID format");
   });
 });

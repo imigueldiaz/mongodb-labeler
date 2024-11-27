@@ -8,9 +8,9 @@ module.exports = {
     }],
   },
   moduleNameMapper: {
-    "^(\\.{1,2}/.*)\\.js$": "$1",
+    "^(\\.{1,2}/.*)\\.js$": "$1"
   },
-  setupFilesAfterEnv: ["./jest.setup.ts"],
+  transformIgnorePatterns: [],
   extensionsToTreatAsEsm: [".ts", ".tsx", ".mts"],
   resolver: "ts-jest-resolver",
   testPathIgnorePatterns: ["/node_modules/", "\\.d\\.ts$", "/dist/"],
@@ -41,4 +41,5 @@ module.exports = {
       statements: 70,
     },
   },
+  setupFilesAfterEnv: ["./jest.setup.ts"],
 };
