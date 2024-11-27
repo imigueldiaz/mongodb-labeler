@@ -1,7 +1,7 @@
 import { Secp256k1Keypair } from "@atproto/crypto";
 import { MongoDBClient } from "./mongodb.js";
 import { CreateLabelData, SavedLabel, SignedLabel, UnsignedLabel } from "./util/types.js";
-import { AtProtocolValidationError, validateAtUri, validateCid, validateDid } from "./util/validators.js";
+import { AtProtocolValidationError, validateAtUri, validateCid, validateDid, validateVal } from "./util/validators.js";
 
 /**
  * Error class for LabelerServer operations
@@ -157,6 +157,9 @@ export class LabelerServer {
     try {
       await this.getInitializationPromise();
 
+      // Validate label value
+      validateVal(data.val);
+
       if (data.uri) {
         try {
           validateAtUri(data.uri);
@@ -301,6 +304,9 @@ export class LabelerServer {
         return null;
       }
 
+      // Validate the label value before creating a new negated label
+      validateVal(label.val);
+
       const unsignedLabel: UnsignedLabel = {
         val: label.val,
         uri: label.uri,
@@ -333,6 +339,9 @@ export class LabelerServer {
       if (error instanceof LabelerServerError) {
         throw error;
       }
+      if (error instanceof AtProtocolValidationError) {
+        throw new LabelerServerError(`Label validation failed: ${error.message}`, error);
+      }
       throw new LabelerServerError(
         "Failed to delete label",
         error instanceof Error ? error : new Error(String(error)),
@@ -361,6 +370,10 @@ export class LabelerServer {
         return null;
       }
       const label = labels[0];
+
+      // Validate the label value before creating a new one
+      validateVal(label.val);
+
       const unsignedLabel: UnsignedLabel = {
         val: label.val,
         uri: label.uri,
@@ -382,6 +395,9 @@ export class LabelerServer {
       }
       return signedLabel;
     } catch (error) {
+      if (error instanceof AtProtocolValidationError) {
+        throw new LabelerServerError(`Label validation failed: ${error.message}`, error);
+      }
       throw new LabelerServerError(
         "Failed to reverse label negation",
         error instanceof Error ? error : new Error(String(error)),

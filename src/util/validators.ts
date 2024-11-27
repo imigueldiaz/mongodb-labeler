@@ -111,3 +111,46 @@ export function validateCid(cidStr: string): void {
     throw new AtProtocolValidationError("Invalid CID format");
   }
 }
+
+/**
+ * Validates a label value according to AT Protocol specifications.
+ * The value must:
+ * - Be a string with max 128 bytes
+ * - Not contain whitespace
+ * - Use only ASCII characters
+ * - Not contain special punctuation except for '!' prefix
+ * @param val - The label value to validate
+ * @throws {AtProtocolValidationError} If the value is invalid
+ */
+export function validateVal(val: string): void {
+  if (!val) {
+    throw new AtProtocolValidationError("Label value cannot be empty");
+  }
+
+  // Check for max 128 bytes
+  const bytes = Buffer.from(val);
+  if (bytes.length > 128) {
+    throw new AtProtocolValidationError("Label value cannot exceed 128 bytes");
+  }
+
+  // Check for whitespace
+  if (/\s/.test(val)) {
+    throw new AtProtocolValidationError("Label value cannot contain whitespace");
+  }
+
+  // Check for non-ASCII characters
+  if (!/^[\x00-\x7F]*$/.test(val)) {
+    throw new AtProtocolValidationError("Label value must only contain ASCII characters");
+  }
+
+  // Check for invalid punctuation
+  // Allow '!' only at the start for system labels
+  if (val.startsWith('!')) {
+    const rest = val.slice(1);
+    if (/[.,:;#_'>`<\\|^]/.test(rest)) {
+      throw new AtProtocolValidationError("Label value contains invalid punctuation characters");
+    }
+  } else if (/[.,:;#_'>`<!\\|^]/.test(val)) {
+    throw new AtProtocolValidationError("Label value contains invalid punctuation characters");
+  }
+}

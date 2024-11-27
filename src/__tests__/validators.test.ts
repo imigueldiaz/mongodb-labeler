@@ -8,7 +8,7 @@ jest.mock("@atproto/syntax", () => ({
   }),
 }));
 
-import { validateAtUri, validateCid, validateDid } from "../util/validators";
+import { validateAtUri, validateCid, validateDid, validateVal } from "../util/validators";
 import { AtProtocolValidationError } from "../util/validators";
 
 describe("DID Validation", () => {
@@ -180,5 +180,120 @@ describe("validateAtUri", () => {
     expect(() => {
       validateAtUri(undefined as unknown as string);
     }).toThrow("URI cannot be null or empty");
+  });
+});
+
+describe("Label Value Validation", () => {
+  // Test valid label values
+  it("should accept valid label values", () => {
+    const validValues = [
+      "spam",
+      "adult",
+      "!warn",
+      "!takedown",
+      "scam",
+      "dmca",
+      "abuse",
+      "reasonablelengthvalue123",
+    ];
+
+    validValues.forEach(val => {
+      expect(() => validateVal(val)).not.toThrow();
+    });
+  });
+
+  // Test empty value
+  it("should throw error for empty value", () => {
+    expect(() => validateVal("")).toThrow(AtProtocolValidationError);
+    expect(() => validateVal("")).toThrow("Label value cannot be empty");
+  });
+
+  // Test byte length
+  it("should throw error for values exceeding 128 bytes", () => {
+    const longValue = "x".repeat(129);
+    expect(() => validateVal(longValue)).toThrow(AtProtocolValidationError);
+    expect(() => validateVal(longValue)).toThrow("Label value cannot exceed 128 bytes");
+  });
+
+  // Test whitespace
+  it("should throw error for values containing whitespace", () => {
+    const valuesWithSpace = [
+      "label with space",
+      "label\twith\ttab",
+      "label\nwith\nnewline",
+      " leadingspace",
+      "trailingspace ",
+    ];
+
+    valuesWithSpace.forEach(val => {
+      expect(() => validateVal(val)).toThrow(AtProtocolValidationError);
+      expect(() => validateVal(val)).toThrow("Label value cannot contain whitespace");
+    });
+  });
+
+  // Test non-ASCII characters
+  it("should throw error for values with non-ASCII characters", () => {
+    const nonAsciiValues = [
+      "label💡",
+      "étiquette",
+      "标签",
+      "ラベル",
+    ];
+
+    nonAsciiValues.forEach(val => {
+      expect(() => validateVal(val)).toThrow(AtProtocolValidationError);
+      expect(() => validateVal(val)).toThrow("Label value must only contain ASCII characters");
+    });
+  });
+
+  // Test punctuation
+  it("should throw error for invalid punctuation", () => {
+    const invalidPunctuation = [
+      "label.with.dots",
+      "label,with,commas",
+      "label:with:colons",
+      "label;with;semicolons",
+      "label#with#hash",
+      "label_with_underscore",
+      "label'with'quotes",
+      "label>with>gt",
+      "label<with<lt",
+      "label\\with\\backslash",
+      "label|with|pipe",
+      "label^with^caret",
+      "!label.with.dots",
+      "!label,with,commas",
+    ];
+
+    invalidPunctuation.forEach(val => {
+      expect(() => validateVal(val)).toThrow(AtProtocolValidationError);
+      expect(() => validateVal(val)).toThrow("Label value contains invalid punctuation characters");
+    });
+  });
+
+  // Test system labels
+  it("should handle system labels correctly", () => {
+    // Valid system labels
+    const validSystemLabels = [
+      "!warn",
+      "!takedown",
+      "!suspend",
+    ];
+
+    validSystemLabels.forEach(val => {
+      expect(() => validateVal(val)).not.toThrow();
+    });
+
+    // Invalid system labels (! not at start)
+    const invalidSystemLabels = [
+      "warn!",
+      "take!down",
+      "sus!pend",
+    ];
+
+    invalidSystemLabels.forEach(val => {
+      expect(() => validateVal(val)).toThrow(AtProtocolValidationError);
+      expect(() => validateVal(val)).toThrow("Label value contains invalid punctuation characters");
+    });
   });
 });
