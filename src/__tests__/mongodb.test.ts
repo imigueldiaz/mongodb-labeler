@@ -8,27 +8,58 @@ describe("MongoDBClient", () => {
   describe("MongoDB Operations", () => {
     let mongoServer: MongoMemoryServer;
     let mongoUri: string;
-
+    let client: MongoDBClient;
+    
     beforeEach(async () => {
+      // Create the MongoDB Memory Server instance
       mongoServer = await MongoMemoryServer.create();
       mongoUri = mongoServer.getUri();
+      client = new MongoDBClient(mongoUri);
+      // Ensure client is connected before tests
+      await client.connect();
     });
-
+    
     afterEach(async () => {
-      await mongoServer.stop();
+      // Explicitly close the MongoDB client
+      if (client) {
+        await client.close().catch(console.error);
+      }
+      // Ensure MongoDB server is stopped
+      if (mongoServer) {
+        await mongoServer.stop({ doCleanup: true }).catch(console.error);
+      }
     });
-
+    
+    // After all tests in this describe block
+    afterAll(async () => {
+      try {
+        // Ensure client connection is closed
+        if (client) {
+          await client.close();
+        }
+        
+        // Final server cleanup
+        if (mongoServer) {
+          await mongoServer.stop();
+        }
+        
+        // Allow a small delay for cleanup operations to complete
+        await new Promise(resolve => setTimeout(resolve, 100));
+      } catch (error) {
+        console.error('Error during final cleanup:', error instanceof Error ? error.message : String(error));
+      }
+    });
     it("should handle errors in updateLabel", async () => {
       const client = new MongoDBClient(mongoUri);
       const mockCollection = {
         updateOne: jest.fn().mockRejectedValue(new Error("Update failed")),
       };
-
+      
       Object.defineProperty(client, "_labels", {
         value: mockCollection,
         writable: true,
       });
-
+      
       const testLabel: UnsignedLabel & { sig: ArrayBuffer } = {
         val: "test",
         uri: "test://uri",
@@ -38,10 +69,10 @@ describe("MongoDBClient", () => {
         neg: false,
         sig: new ArrayBuffer(0),
       };
-
+      
       await expect(client.updateLabel(1, testLabel)).rejects.toThrow("Failed to update label");
     });
-
+    
     it("should handle errors in getLabelsAfterCursor", async () => {
       const client = new MongoDBClient(mongoUri);
       const mockCollection = {
@@ -53,35 +84,35 @@ describe("MongoDBClient", () => {
           }),
         }),
       };
-
+      
       Object.defineProperty(client, "_labels", {
         value: mockCollection,
         writable: true,
       });
-
+      
       await expect(client.getLabelsAfterCursor(0, 10)).rejects.toThrow("Failed to get labels after cursor");
     });
-
+    
     it("should handle uninitialized collection in operations", async () => {
       const client = new MongoDBClient(mongoUri);
-
+      
       await expect(client.findLabels({})).resolves.toEqual([]);
       await expect(client.findOne({})).resolves.toBeNull();
       await expect(client.getLabelsAfterCursor(0, 10)).resolves.toEqual([]);
     });
-
+    
     it("should handle first label creation with _getNextId", async () => {
       const client = new MongoDBClient(mongoUri);
       const mockCollection = {
         findOne: jest.fn().mockResolvedValue(null),
         insertOne: jest.fn().mockResolvedValue({ acknowledged: true }),
       };
-
+      
       Object.defineProperty(client, "_labels", {
         value: mockCollection,
         writable: true,
       });
-
+      
       const testLabel: UnsignedLabel & { sig: ArrayBuffer } = {
         val: "test",
         uri: "test://uri",
@@ -91,10 +122,10 @@ describe("MongoDBClient", () => {
         neg: false,
         sig: new ArrayBuffer(0),
       };
-
+      
       await expect(client.saveLabel(testLabel)).resolves.toHaveProperty("id", 1);
     });
-
+    
     it("should handle errors in listCollections during connect", async () => {
       const client = new MongoDBClient(mongoUri);
       const mockDb = {
@@ -103,7 +134,7 @@ describe("MongoDBClient", () => {
         }),
         collection: jest.fn(),
       };
-
+      
       // Mock the internal _db property after connect is called
       const originalConnect = client.connect.bind(client);
       client.connect = async () => {
@@ -114,10 +145,10 @@ describe("MongoDBClient", () => {
         });
         throw new Error("Failed to connect to MongoDB");
       };
-
+      
       await expect(client.connect()).rejects.toThrow("Failed to connect to MongoDB");
     }, TEST_TIMEOUT);
-
+    
     it("should handle errors in createIndex during connect", async () => {
       const client = new MongoDBClient(mongoUri);
       const mockCollection = {
@@ -130,7 +161,7 @@ describe("MongoDBClient", () => {
         createCollection: jest.fn().mockResolvedValue(mockCollection),
         collection: jest.fn().mockReturnValue(mockCollection),
       };
-
+      
       // Mock the internal _db property after connect is called
       const originalConnect = client.connect.bind(client);
       client.connect = async () => {
@@ -141,26 +172,26 @@ describe("MongoDBClient", () => {
         });
         throw new Error("Failed to connect to MongoDB");
       };
-
+      
       await expect(client.connect()).rejects.toThrow("Failed to connect to MongoDB");
     }, TEST_TIMEOUT);
-
+    
     it('should handle MongoDB connection errors with invalid URI', async () => {
       const client = new MongoDBClient('mongodb://invalid:27017');
       await expect(client.connect()).rejects.toThrow('Failed to connect to MongoDB');
     }, TEST_TIMEOUT);
-
+    
     it('should handle errors in _getNextId', async () => {
       const client = new MongoDBClient(mongoUri);
       const mockCollection = {
         findOne: jest.fn().mockRejectedValue(new Error('Database error')),
       };
-
+      
       Object.defineProperty(client, '_labels', {
         value: mockCollection,
         writable: true,
       });
-
+      
       const testLabel: UnsignedLabel & { sig: ArrayBuffer } = {
         val: 'test',
         uri: 'test://uri',
@@ -170,18 +201,18 @@ describe("MongoDBClient", () => {
         neg: false,
         sig: new ArrayBuffer(0),
       };
-
+      
       await expect(client.saveLabel(testLabel)).rejects.toThrow('Failed to get next ID');
     });
-
+    
     it('should properly filter expired labels', async () => {
       const client = new MongoDBClient(mongoUri);
       await client.connect();
-
+      
       const now = new Date();
       const pastDate = new Date(now.getTime() - 24 * 60 * 60 * 1000); // 1 day ago
       const futureDate = new Date(now.getTime() + 24 * 60 * 60 * 1000); // 1 day in future
-
+      
       // Create expired and valid labels
       const expiredLabel = {
         src: 'did:test:expired' as `did:${string}`,
@@ -193,7 +224,7 @@ describe("MongoDBClient", () => {
         exp: pastDate.toISOString(),
         sig: new ArrayBuffer(64)
       };
-
+      
       const validLabel = {
         src: 'did:test:valid' as `did:${string}`,
         uri: 'at://valid',
@@ -204,10 +235,10 @@ describe("MongoDBClient", () => {
         exp: futureDate.toISOString(),
         sig: new ArrayBuffer(64)
       };
-
+      
       await client.saveLabel(expiredLabel);
       await client.saveLabel(validLabel);
-
+      
       const labels = await client.findLabels({});
       
       // Should only find the valid label
@@ -216,7 +247,7 @@ describe("MongoDBClient", () => {
       
       await client.close();
     }, TEST_TIMEOUT);
-
+    
     it('should handle errors in findLabels query execution', async () => {
       const client = new MongoDBClient(mongoUri);
       const mockCollection = {
@@ -224,29 +255,29 @@ describe("MongoDBClient", () => {
           toArray: jest.fn().mockRejectedValue(new Error('Query execution failed')),
         }),
       };
-
+      
       Object.defineProperty(client, '_labels', {
         value: mockCollection,
         writable: true,
       });
-
+      
       await expect(client.findLabels({})).rejects.toThrow('Failed to find labels');
     });
-
+    
     it("should handle errors in findOne when collection is initialized", async () => {
       const client = new MongoDBClient(mongoUri);
       const mockCollection = {
         findOne: jest.fn().mockRejectedValue(new Error("Find operation failed")),
       };
-
+      
       Object.defineProperty(client, "_labels", {
         value: mockCollection,
         writable: true,
       });
-
+      
       await expect(client.findOne({ id: 1 })).rejects.toThrow("Failed to find label");
     });
-
+    
     it("should handle errors in findLabels when collection is initialized", async () => {
       const client = new MongoDBClient(mongoUri);
       const mockCollection = {
@@ -254,27 +285,27 @@ describe("MongoDBClient", () => {
           toArray: jest.fn().mockRejectedValue(new Error("Find operation failed")),
         }),
       };
-
+      
       Object.defineProperty(client, "_labels", {
         value: mockCollection,
         writable: true,
       });
-
+      
       await expect(client.findLabels({ src: "did:web:test.com" as `did:${string}` })).rejects.toThrow("Failed to find labels");
     });
-
+    
     it("should handle errors in saveLabel collection operation", async () => {
       const client = new MongoDBClient(mongoUri);
       const mockCollection = {
         findOne: jest.fn().mockResolvedValue({ id: 1 }),
         insertOne: jest.fn().mockRejectedValue(new Error("Insert failed")),
       };
-
+      
       Object.defineProperty(client, "_labels", {
         value: mockCollection,
         writable: true,
       });
-
+      
       const testLabel: UnsignedLabel & { sig: ArrayBuffer } = {
         val: "test",
         uri: "test://uri",
@@ -284,21 +315,21 @@ describe("MongoDBClient", () => {
         neg: false,
         sig: new ArrayBuffer(0),
       };
-
+      
       await expect(client.saveLabel(testLabel)).rejects.toThrow("Failed to save label");
     });
-
+    
     it("should handle errors in getting next ID during saveLabel", async () => {
       const client = new MongoDBClient(mongoUri);
       const mockCollection = {
         findOne: jest.fn().mockRejectedValue(new Error("Find operation failed")),
       };
-
+      
       Object.defineProperty(client, "_labels", {
         value: mockCollection,
         writable: true,
       });
-
+      
       const testLabel: UnsignedLabel & { sig: ArrayBuffer } = {
         val: "test",
         uri: "test://uri",
@@ -308,24 +339,24 @@ describe("MongoDBClient", () => {
         neg: false,
         sig: new ArrayBuffer(0),
       };
-
+      
       await expect(client.saveLabel(testLabel)).rejects.toThrow("Failed to get next ID");
     });
   });
-
+  
   describe('Label Operations', () => {
     let mongoServer: MongoMemoryServer;
     let mongoUri: string;
-
+    
     beforeEach(async () => {
       mongoServer = await MongoMemoryServer.create();
       mongoUri = mongoServer.getUri();
     });
-
+    
     afterEach(async () => {
       await mongoServer.stop();
     });
-
+    
     it('should handle saveLabel with various scenarios', async () => {
       const client = new MongoDBClient(mongoUri);
       await client.connect();
@@ -349,7 +380,7 @@ describe("MongoDBClient", () => {
       await client.close();
       await expect(client.saveLabel(label)).rejects.toThrow();
     }, TEST_TIMEOUT);
-
+    
     it('should handle findLabels with different queries and options', async () => {
       const client = new MongoDBClient(mongoUri);
       await client.connect();
@@ -391,7 +422,7 @@ describe("MongoDBClient", () => {
       
       await client.close();
     }, TEST_TIMEOUT);
-
+    
     it('should handle findOne with different scenarios', async () => {
       const client = new MongoDBClient(mongoUri);
       await client.connect();

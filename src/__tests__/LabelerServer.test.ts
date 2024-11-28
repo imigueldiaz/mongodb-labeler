@@ -28,11 +28,44 @@ describe("LabelerServer", () => {
   }, SETUP_TIMEOUT);
 
   afterAll(async () => {
-    if (connection instanceof MongoClient) {
-      await connection.close();
+    try {
+      // Close all connections in sequence to ensure proper cleanup
+      if (server) {
+        await server.close();
+      }
+      
+      if (connection) {
+        await connection.close(true);  // Force close to ensure cleanup
+      }
+      
+      if (mongoServer) {
+        await mongoServer.stop();
+      }
+
+      // Short delay to ensure cleanup completes
+      await new Promise(resolve => setTimeout(resolve, 100));
+    } catch (error) {
+      console.error('Error during test cleanup:', 
+        error instanceof Error ? error.message : String(error));
     }
-    if (mongoServer instanceof MongoMemoryServer) {
-      await mongoServer.stop();
+  });
+
+  afterEach(async () => {
+    try {
+      // Clean up the database first
+      if (collection) {
+        await collection.drop().catch(() => {
+          // Ignore errors if collection doesn't exist
+        });
+      }
+      
+      // Then close the server instance
+      if (server) {
+        await server.close();
+      }
+    } catch (error) {
+      console.error('Error during test cleanup:', 
+        error instanceof Error ? error.message : String(error));
     }
   });
 
@@ -56,12 +89,6 @@ describe("LabelerServer", () => {
     // Wait for both MongoDB connection and signer initialization
     await server.db.connect();
     await server.getInitializationPromise();
-  });
-
-  afterEach(async () => {
-    // Clean up the database after each test
-    await collection.drop().catch(() => {/* ignore if collection doesn't exist */});
-    await server.close();
   });
 
   describe("MongoDB Operations", () => {
