@@ -14,7 +14,6 @@ globalThis.mockLabels = undefined;
 // Store original timer functions
 const originalSetTimeout = global.setTimeout;
 const originalClearTimeout = global.clearTimeout;
-const originalDateNow = Date.now;
 
 // We need to track both Timeout objects and numbers since Node.js can return either
 const activeTimers = new Set<NodeJS.Timeout | number>();
@@ -66,7 +65,7 @@ const customClearTimeout = createClearTimeout();
 global.setTimeout = customSetTimeout;
 global.clearTimeout = customClearTimeout;
 
-// The rest of your mock setup code remains the same...
+// Mock XRPC Error
 jest.mock("@atproto/xrpc", () => ({
   XRPCError: class XRPCError extends Error {
     status: number;
@@ -78,12 +77,15 @@ jest.mock("@atproto/xrpc", () => ({
   },
 }));
 
+// Set shorter Jest timeout globally
+jest.setTimeout(10000); // 10 seconds default timeout
+
 // Clean up after each test
 afterEach(() => {
   // Clear all active timers
-  for (const timer of activeTimers) {
+  activeTimers.forEach(timer => {
     originalClearTimeout(timer);
-  }
+  });
   activeTimers.clear();
 
   // Reset mock states
@@ -96,9 +98,10 @@ afterAll(() => {
   // Restore original timer functions
   global.setTimeout = originalSetTimeout;
   global.clearTimeout = originalClearTimeout;
+  
   // Clear any remaining timers
-  for (const timer of activeTimers) {
+  activeTimers.forEach(timer => {
     originalClearTimeout(timer);
-  }
+  });
   activeTimers.clear();
 });

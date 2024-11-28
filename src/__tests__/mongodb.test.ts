@@ -10,10 +10,13 @@ describe("MongoDBClient", () => {
     let mongoUri: string;
     let client: MongoDBClient;
     
-    beforeEach(async () => {
-      // Create the MongoDB Memory Server instance
+    beforeAll(async () => {
+      // Create the MongoDB Memory Server instance once for all tests
       mongoServer = await MongoMemoryServer.create();
       mongoUri = mongoServer.getUri();
+    });
+
+    beforeEach(async () => {
       client = new MongoDBClient(mongoUri);
       // Ensure client is connected before tests
       await client.connect();
@@ -24,30 +27,21 @@ describe("MongoDBClient", () => {
       if (client) {
         await client.close().catch(console.error);
       }
-      // Ensure MongoDB server is stopped
-      if (mongoServer) {
-        await mongoServer.stop({ doCleanup: true }).catch(console.error);
-      }
     });
     
     // After all tests in this describe block
     afterAll(async () => {
       try {
-        // Ensure client connection is closed
-        if (client) {
-          await client.close();
-        }
-        
         // Final server cleanup
         if (mongoServer) {
-          await mongoServer.stop();
+          await mongoServer.stop({ doCleanup: true });
         }
       } catch (error) {
         console.error('Error during final cleanup:', error instanceof Error ? error.message : String(error));
       }
     });
+    
     it("should handle errors in updateLabel", async () => {
-      const client = new MongoDBClient(mongoUri);
       const mockCollection = {
         updateOne: jest.fn().mockRejectedValue(new Error("Update failed")),
       };
@@ -71,7 +65,6 @@ describe("MongoDBClient", () => {
     });
     
     it("should handle errors in getLabelsAfterCursor", async () => {
-      const client = new MongoDBClient(mongoUri);
       const mockCollection = {
         find: jest.fn().mockReturnValue({
           sort: jest.fn().mockReturnValue({
@@ -99,7 +92,6 @@ describe("MongoDBClient", () => {
     });
     
     it("should handle first label creation with _getNextId", async () => {
-      const client = new MongoDBClient(mongoUri);
       const mockCollection = {
         findOne: jest.fn().mockResolvedValue(null),
         insertOne: jest.fn().mockResolvedValue({ acknowledged: true }),
@@ -179,7 +171,6 @@ describe("MongoDBClient", () => {
     }, TEST_TIMEOUT);
     
     it('should handle errors in _getNextId', async () => {
-      const client = new MongoDBClient(mongoUri);
       const mockCollection = {
         findOne: jest.fn().mockRejectedValue(new Error('Database error')),
       };
@@ -246,7 +237,6 @@ describe("MongoDBClient", () => {
     }, TEST_TIMEOUT);
     
     it('should handle errors in findLabels query execution', async () => {
-      const client = new MongoDBClient(mongoUri);
       const mockCollection = {
         find: jest.fn().mockReturnValue({
           toArray: jest.fn().mockRejectedValue(new Error('Query execution failed')),
@@ -262,7 +252,6 @@ describe("MongoDBClient", () => {
     });
     
     it("should handle errors in findOne when collection is initialized", async () => {
-      const client = new MongoDBClient(mongoUri);
       const mockCollection = {
         findOne: jest.fn().mockRejectedValue(new Error("Find operation failed")),
       };
@@ -276,7 +265,6 @@ describe("MongoDBClient", () => {
     });
     
     it("should handle errors in findLabels when collection is initialized", async () => {
-      const client = new MongoDBClient(mongoUri);
       const mockCollection = {
         find: jest.fn().mockReturnValue({
           toArray: jest.fn().mockRejectedValue(new Error("Find operation failed")),
@@ -292,7 +280,6 @@ describe("MongoDBClient", () => {
     });
     
     it("should handle errors in saveLabel collection operation", async () => {
-      const client = new MongoDBClient(mongoUri);
       const mockCollection = {
         findOne: jest.fn().mockResolvedValue({ id: 1 }),
         insertOne: jest.fn().mockRejectedValue(new Error("Insert failed")),
@@ -317,7 +304,6 @@ describe("MongoDBClient", () => {
     });
     
     it("should handle errors in getting next ID during saveLabel", async () => {
-      const client = new MongoDBClient(mongoUri);
       const mockCollection = {
         findOne: jest.fn().mockRejectedValue(new Error("Find operation failed")),
       };

@@ -29,18 +29,11 @@ describe("LabelerServer", () => {
 
   afterAll(async () => {
     try {
-      // Close all connections in sequence to ensure proper cleanup
-      if (server) {
-        await server.close();
-      }
-      
-      if (connection) {
-        await connection.close(true);  // Force close to ensure cleanup
-      }
-      
-      if (mongoServer) {
-        await mongoServer.stop();
-      }
+      await Promise.all([
+        server?.close(),
+        connection?.close(true),
+        mongoServer?.stop()
+      ]);
     } catch (error) {
       console.error('Error during test cleanup:', 
         error instanceof Error ? error.message : String(error));
@@ -49,17 +42,10 @@ describe("LabelerServer", () => {
 
   afterEach(async () => {
     try {
-      // Clean up the database first
-      if (collection) {
-        await collection.drop().catch(() => {
-          // Ignore errors if collection doesn't exist
-        });
-      }
-      
-      // Then close the server instance
-      if (server) {
-        await server.close();
-      }
+      await Promise.all([
+        collection?.drop().catch(() => {/* ignore if collection doesn't exist */}),
+        server?.close()
+      ]);
     } catch (error) {
       console.error('Error during test cleanup:', 
         error instanceof Error ? error.message : String(error));
@@ -68,24 +54,20 @@ describe("LabelerServer", () => {
 
   beforeEach(async () => {
     try {
-      // Drop the collection to ensure a clean state
       await collection.drop().catch(() => {/* ignore if collection doesn't exist */});
-
-      // Ping the database to check connection
       await connection.db().admin().ping();
     } catch (error) {
       // Reconnect if ping fails
-      const uri = mongoServer.getUri();
-      connection = await MongoClient.connect(uri);
+      connection = await MongoClient.connect(options.mongoUri);
       collection = connection.db("test").collection("labels");
     }
 
     // Create a new server instance with a fresh connection
     server = new LabelerServer(options);
-
-    // Wait for both MongoDB connection and signer initialization
-    await server.db.connect();
-    await server.getInitializationPromise();
+    await Promise.all([
+      server.db.connect(),
+      server.getInitializationPromise()
+    ]);
   });
 
   describe("MongoDB Operations", () => {
