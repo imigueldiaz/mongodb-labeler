@@ -329,6 +329,10 @@ describe("Timestamp Validation", () => {
           );
         }
       }
+
+      static now() {
+        return mockNow.getTime();
+      }
     }
     
     global.Date = MockDate as DateConstructor;

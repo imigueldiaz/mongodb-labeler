@@ -14,6 +14,7 @@ globalThis.mockLabels = undefined;
 // Store original timer functions
 const originalSetTimeout = global.setTimeout;
 const originalClearTimeout = global.clearTimeout;
+const originalDateNow = Date.now;
 
 // We need to track both Timeout objects and numbers since Node.js can return either
 const activeTimers = new Set<NodeJS.Timeout | number>();
@@ -88,9 +89,6 @@ afterEach(() => {
   // Reset mock states
   globalThis.mockFindLabelsError = false;
   globalThis.mockLabels = undefined;
-
-  // Use the original setTimeout for cleanup delay
-  originalSetTimeout(() => {}, 100);
 });
 
 // Clean up after all tests
