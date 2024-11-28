@@ -42,9 +42,6 @@ describe("MongoDBClient", () => {
         if (mongoServer) {
           await mongoServer.stop();
         }
-        
-        // Allow a small delay for cleanup operations to complete
-        await new Promise(resolve => setTimeout(resolve, 100));
       } catch (error) {
         console.error('Error during final cleanup:', error instanceof Error ? error.message : String(error));
       }

@@ -41,9 +41,6 @@ describe("LabelerServer", () => {
       if (mongoServer) {
         await mongoServer.stop();
       }
-
-      // Short delay to ensure cleanup completes
-      await new Promise(resolve => setTimeout(resolve, 100));
     } catch (error) {
       console.error('Error during test cleanup:', 
         error instanceof Error ? error.message : String(error));

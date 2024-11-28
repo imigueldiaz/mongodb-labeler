@@ -32,10 +32,6 @@ function createSetTimeout() {
   ): NodeJS.Timeout | number {
     // Call the original setTimeout and track the result
     const timer = originalSetTimeout(handler, ms, ...args);
-    if (typeof timer === 'number') {
-      activeTimers.add(timer);
-      return timer;
-    }
     activeTimers.add(timer);
     return timer;
   } as CustomSetTimeout;
@@ -53,10 +49,7 @@ function createSetTimeout() {
 
 // Create our clearTimeout wrapper with the correct signature
 function createClearTimeout() {
-  // This type matches Node's clearTimeout signature
-  return function clearTimeout(
-    timeoutId?: string | number | NodeJS.Timeout | undefined
-  ): void {
+  return function clearTimeout(timeoutId?: string | number | NodeJS.Timeout | undefined): void {
     if (timeoutId !== undefined) {
       activeTimers.delete(timeoutId as NodeJS.Timeout | number);
       originalClearTimeout(timeoutId);
@@ -85,11 +78,11 @@ jest.mock("@atproto/xrpc", () => ({
 }));
 
 // Clean up after each test
-afterEach(async () => {
+afterEach(() => {
   // Clear all active timers
-  activeTimers.forEach(timerId => {
-    originalClearTimeout(timerId);
-  });
+  for (const timer of activeTimers) {
+    originalClearTimeout(timer);
+  }
   activeTimers.clear();
 
   // Reset mock states
@@ -97,5 +90,17 @@ afterEach(async () => {
   globalThis.mockLabels = undefined;
 
   // Use the original setTimeout for cleanup delay
-  await new Promise(resolve => originalSetTimeout(resolve, 100));
+  originalSetTimeout(() => {}, 100);
+});
+
+// Clean up after all tests
+afterAll(() => {
+  // Restore original timer functions
+  global.setTimeout = originalSetTimeout;
+  global.clearTimeout = originalClearTimeout;
+  // Clear any remaining timers
+  for (const timer of activeTimers) {
+    originalClearTimeout(timer);
+  }
+  activeTimers.clear();
 });
