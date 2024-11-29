@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.3.3] - 2024-03-19
+
+### Fixed
+
+- Fixed hanging tests in CI environment
+- Optimized Jest configuration for CI environments
+- Improved MongoDB Memory Server handling in tests
+
+### Changed
+
+- Updated GitHub Actions workflow configuration
+- Modified timeout and log management in CI
+- Added timeout control to prevent infinite test execution
+
+
 ## [0.3.2] - 2024-01-19
 
 ### Changed
