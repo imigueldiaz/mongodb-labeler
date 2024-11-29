@@ -27,14 +27,12 @@ jobs:
       - name: Clean npm cache
         run: |
           npm cache clean --force
-          rm -rf ~/.npm
           rm -rf node_modules
-          rm -rf package-lock.json
+         
 
       # 3. Install Dependencies
       - name: Install Dependencies
         run: |
-          npm install --no-package-lock
           npm ci
   
       # 7. Run Tests
