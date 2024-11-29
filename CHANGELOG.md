@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.3.2] - 2024-01-19
+
+### Changed
+
+- Improved ESLint configuration for test files
+- Added explicit `strictNullChecks` configuration in tsconfig.json
+- Disabled specific ESLint rules for test files for better Jest compatibility
+
+## [0.3.1] - 2024-01-19
+
+### Added
+
+- Added Jest global setup file for configuring test environment
+- Added AT Protocol Technical Cheatsheet and MongoDB setup documentation
+- Added global timer mock setup and cleanup functions
+
+### Changed
+
+- Enhanced Jest timeout configuration for tests
+- Improved cleanup logic in test environment
+- Refactored clearTimeout function and test cleanup actions
+- Added original Date.now tracking in Jest setup for better time handling in tests
+
 ## [0.3.0] - 2024-01-17
 
 ### Added

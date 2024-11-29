@@ -83,17 +83,20 @@ export default [
       ]
     }
   },
-  // Test files configuration with relaxed rules
+  // Configuración específica para archivos de prueba
   {
-    files: ['**/*.test.ts', '**/*.spec.ts', '**/jest.setup.ts'],
+    files: ['**/__tests__/**/*.ts', '**/*.test.ts'],
     rules: {
-      '@typescript-eslint/naming-convention': 'off',
-      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
       '@typescript-eslint/no-unsafe-member-access': 'off',
       '@typescript-eslint/no-unsafe-assignment': 'off',
-      '@typescript-eslint/no-unnecessary-condition': 'off',
+      '@typescript-eslint/no-unsafe-argument': 'off',
+      '@typescript-eslint/no-unsafe-return': 'off',
+      '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/explicit-function-return-type': 'off',
-      '@typescript-eslint/no-unused-vars': 'off'
+      '@typescript-eslint/explicit-module-boundary-types': 'off',
+      '@typescript-eslint/no-unnecessary-condition': 'off',
+      '@typescript-eslint/naming-convention': 'off'
     }
   }
 ];
