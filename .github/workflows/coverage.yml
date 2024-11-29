@@ -42,15 +42,12 @@ jobs:
             --config jest.config.cjs \
             --coverage \
             --forceExit \
-            --detectOpenHandles \
             --runInBand \
-            --verbose \
-            --no-cache
+            --verbose
         env:
           CI: true
           JEST_TIMEOUT: 60000
           NODE_OPTIONS: "--max-old-space-size=4096"
-          DEBUG: "mongodb-memory-server:*"
 
       # 8. Upload coverage to Codecov (optional)
       - name: Upload Coverage to Codecov

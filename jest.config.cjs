@@ -34,7 +34,6 @@ module.exports = {
   ],
   testTimeout: 60000,
   forceExit: true,
-  detectOpenHandles: true,
   logHeapUsage: true,
   maxWorkers: 1,
   coverageThreshold: {
