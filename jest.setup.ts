@@ -25,8 +25,8 @@ jest.mock("@atproto/xrpc", () => ({
   },
 }));
 
-// Set shorter Jest timeout globally
-jest.setTimeout(10000); // 10 seconds default timeout
+// Set Jest timeout globally - using the same value as in jest.config.cjs
+jest.setTimeout(30000); // 30 seconds default timeout
 
 // Helper function to get MongoDB URI with type safety
 export function getMongodUri(): string {
@@ -38,19 +38,36 @@ export function getMongodUri(): string {
 
 // Start MongoDB Memory Server once for all tests
 beforeAll(async () => {
-  globalThis.__MONGOD__ = await MongoMemoryServer.create();
-});
+  try {
+    globalThis.__MONGOD__ = await MongoMemoryServer.create({
+      instance: {
+        dbName: 'jest',
+        storageEngine: 'ephemeralForTest'
+      }
+    });
+    console.log('MongoDB Memory Server started successfully');
+  } catch (error) {
+    console.error('Failed to start MongoDB Memory Server:', error);
+    throw error;
+  }
+}, 35000); // Increased timeout for MongoDB startup
 
 // Clean up MongoDB Memory Server after all tests
 afterAll(async () => {
-  if (globalThis.__MONGOD__) {
-    await globalThis.__MONGOD__.stop();
+  try {
+    if (globalThis.__MONGOD__) {
+      await globalThis.__MONGOD__.stop();
+      console.log('MongoDB Memory Server stopped successfully');
+    }
+  } catch (error) {
+    console.error('Failed to stop MongoDB Memory Server:', error);
+    throw error;
   }
-});
+}, 35000); // Increased timeout for cleanup
 
 // Clean up after each test
 afterEach(() => {
-  // Reset mock states
+  // Reset mock state
   globalThis.mockFindLabelsError = false;
   globalThis.mockLabels = undefined;
 });

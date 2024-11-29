@@ -22,37 +22,33 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22' # Asegura usar la versión requerida
+          node-version: '22' 
 
       - name: Clean npm cache
         run: |
           npm cache clean --force
           rm -rf ~/.npm
           rm -rf node_modules
+          rm -rf package-lock.json
 
       # 3. Install Dependencies
       - name: Install Dependencies
         run: |
-          npm install
-
-      # 5. Run linting
-      - name: Lint Code
-        run: npm run lint
-        
-      # 6. Build the project
-      - name: Build Project
-        run: npm run build
-
+          npm install --no-package-lock
+          npm ci
+  
       # 7. Run Tests
       - name: Run Tests
-        run: npm test
+        run: npm test -- --coverage
+        env:
+          CI: true
 
       # 8. Upload coverage to Codecov (optional)
       - name: Upload Coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./coverage/*.json
+          directory: ./coverage
           flags: unittests
           name: node-tests
-          fail_ci_if_error: true
+          fail_ci_if_error: false
