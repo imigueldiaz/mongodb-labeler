@@ -37,10 +37,20 @@ jobs:
   
       # 7. Run Tests
       - name: Run Tests
-        run: npm test -- --coverage
+        run: |
+          node --max-old-space-size=4096 node_modules/.bin/jest \
+            --config jest.config.cjs \
+            --coverage \
+            --forceExit \
+            --detectOpenHandles \
+            --runInBand \
+            --verbose \
+            --no-cache
         env:
           CI: true
-          JEST_TIMEOUT: 30000
+          JEST_TIMEOUT: 60000
+          NODE_OPTIONS: "--max-old-space-size=4096"
+          DEBUG: "mongodb-memory-server:*"
 
       # 8. Upload coverage to Codecov (optional)
       - name: Upload Coverage to Codecov

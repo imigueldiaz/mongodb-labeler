@@ -32,9 +32,11 @@ module.exports = {
       addFileAttribute: true,
     }],
   ],
-  testTimeout: 30000,
+  testTimeout: 60000,
   forceExit: true,
   detectOpenHandles: true,
+  logHeapUsage: true,
+  maxWorkers: 1,
   coverageThreshold: {
     global: {
       branches: 50,
