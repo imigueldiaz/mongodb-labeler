@@ -1,6 +1,6 @@
 // Import the specific types we need from Node.js
-import type { TimerOptions } from 'node:timers';
 import { MongoMemoryServer } from 'mongodb-memory-server';
+import { MongoClient } from 'mongodb';
 
 // Define proper types for our global mocks
 declare global {
@@ -36,34 +36,48 @@ export function getMongodUri(): string {
   return globalThis.__MONGOD__.getUri();
 }
 
+let mongoClient: MongoClient | null = null;
+
 // Start MongoDB Memory Server once for all tests
 beforeAll(async () => {
   try {
     globalThis.__MONGOD__ = await MongoMemoryServer.create({
       instance: {
         dbName: 'jest',
-        storageEngine: 'ephemeralForTest'
+        storageEngine: 'wiredTiger'
       }
     });
+    
+    // Inicializamos la conexión que usaremos en los tests
+    mongoClient = await MongoClient.connect(globalThis.__MONGOD__.getUri());
     console.log('MongoDB Memory Server started successfully');
   } catch (error) {
     console.error('Failed to start MongoDB Memory Server:', error);
     throw error;
   }
-}, 35000); // Increased timeout for MongoDB startup
+});
 
-// Clean up MongoDB Memory Server after all tests
 afterAll(async () => {
   try {
+    // Cerramos la conexión si existe
+    if (mongoClient) {
+      await mongoClient.close(true);
+      mongoClient = null;
+    }
+    
+    // Esperamos un poco antes de detener el servidor
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Detenemos el servidor
     if (globalThis.__MONGOD__) {
-      await globalThis.__MONGOD__.stop();
+      await globalThis.__MONGOD__.stop({ doCleanup: true });
       console.log('MongoDB Memory Server stopped successfully');
     }
   } catch (error) {
     console.error('Failed to stop MongoDB Memory Server:', error);
     throw error;
   }
-}, 35000); // Increased timeout for cleanup
+});
 
 // Clean up after each test
 afterEach(() => {

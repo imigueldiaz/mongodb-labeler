@@ -33,6 +33,8 @@ module.exports = {
     }],
   ],
   testTimeout: 30000,
+  forceExit: true,
+  detectOpenHandles: true,
   coverageThreshold: {
     global: {
       branches: 50,

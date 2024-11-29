@@ -40,6 +40,7 @@ jobs:
         run: npm test -- --coverage
         env:
           CI: true
+          JEST_TIMEOUT: 30000
 
       # 8. Upload coverage to Codecov (optional)
       - name: Upload Coverage to Codecov
