@@ -299,48 +299,16 @@ describe("Label Value Validation", () => {
 });
 
 describe("Timestamp Validation", () => {
-  let originalDate: DateConstructor;
   const mockNow = new Date("2023-12-25T12:00:00Z");
 
   beforeAll(() => {
-    // Store the original Date constructor
-    originalDate = global.Date;
-    
-    // Mock Date to return a fixed date
-    class MockDate extends Date {
-      constructor(value?: string | number | Date);
-      constructor(year: number, month: number, date?: number, hours?: number, minutes?: number, seconds?: number, ms?: number);
-      constructor(first?: string | number | Date | undefined, month?: number, date?: number, hours?: number, minutes?: number, seconds?: number, ms?: number) {
-        if (arguments.length === 0) {
-          super(mockNow);
-        } else if (arguments.length === 1) {
-          super(first as string | number | Date);
-        } else {
-          // Handle multi-parameter constructor
-          const year = first as number;
-          super(
-            year,
-            month || 0,
-            date || 1,
-            hours || 0,
-            minutes || 0,
-            seconds || 0,
-            ms || 0
-          );
-        }
-      }
-
-      static now() {
-        return mockNow.getTime();
-      }
-    }
-    
-    global.Date = MockDate as DateConstructor;
+    // Mock Date.now() and new Date() using Jest
+    jest.useFakeTimers();
+    jest.setSystemTime(mockNow);
   });
 
   afterAll(() => {
-    // Restore the original Date constructor
-    global.Date = originalDate;
+    jest.useRealTimers();
   });
 
   describe("Creation Timestamp (cts)", () => {

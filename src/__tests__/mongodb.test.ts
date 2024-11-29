@@ -1,43 +1,39 @@
 import { MongoDBClient } from "../mongodb.js";
 import type { UnsignedLabel } from "../util/types.js";
-import { MongoMemoryServer } from 'mongodb-memory-server';
+import { getMongodUri } from "../../jest.setup";
+import { getErrorMessage } from "../util/errorUtils";
 
 const TEST_TIMEOUT = 35000;
 
 describe("MongoDBClient", () => {
   describe("MongoDB Operations", () => {
-    let mongoServer: MongoMemoryServer;
     let mongoUri: string;
     let client: MongoDBClient;
     
-    beforeAll(async () => {
-      // Create the MongoDB Memory Server instance once for all tests
-      mongoServer = await MongoMemoryServer.create();
-      mongoUri = mongoServer.getUri();
+    beforeAll(() => {
+      mongoUri = getMongodUri();
     });
 
     beforeEach(async () => {
       client = new MongoDBClient(mongoUri);
       // Ensure client is connected before tests
-      await client.connect();
+      await safeAsyncOperation(async () => {
+        await client.connect();
+      }, getErrorMessage('Failed to connect client'));
     });
     
     afterEach(async () => {
-      // Explicitly close the MongoDB client
-      if (client) {
-        await client.close().catch(console.error);
-      }
+      await safeAsyncOperation(async () => {
+        await client?.close();
+      }, getErrorMessage('Failed to close client'));
     });
     
     // After all tests in this describe block
     afterAll(async () => {
       try {
         // Final server cleanup
-        if (mongoServer) {
-          await mongoServer.stop({ doCleanup: true });
-        }
       } catch (error) {
-        console.error('Error during final cleanup:', error instanceof Error ? error.message : String(error));
+        console.error('Error during final cleanup:', getErrorMessage(error));
       }
     });
     
@@ -195,7 +191,9 @@ describe("MongoDBClient", () => {
     
     it('should properly filter expired labels', async () => {
       const client = new MongoDBClient(mongoUri);
-      await client.connect();
+      await safeAsyncOperation(async () => {
+        await client.connect();
+      }, getErrorMessage('Failed to connect client'));
       
       const now = new Date();
       const pastDate = new Date(now.getTime() - 24 * 60 * 60 * 1000); // 1 day ago
@@ -328,21 +326,17 @@ describe("MongoDBClient", () => {
   });
   
   describe('Label Operations', () => {
-    let mongoServer: MongoMemoryServer;
     let mongoUri: string;
     
-    beforeEach(async () => {
-      mongoServer = await MongoMemoryServer.create();
-      mongoUri = mongoServer.getUri();
-    });
-    
-    afterEach(async () => {
-      await mongoServer.stop();
+    beforeEach(() => {
+      mongoUri = getMongodUri();
     });
     
     it('should handle saveLabel with various scenarios', async () => {
       const client = new MongoDBClient(mongoUri);
-      await client.connect();
+      await safeAsyncOperation(async () => {
+        await client.connect();
+      }, getErrorMessage('Failed to connect client'));
       
       // Test successful save
       const label = {
@@ -366,7 +360,9 @@ describe("MongoDBClient", () => {
     
     it('should handle findLabels with different queries and options', async () => {
       const client = new MongoDBClient(mongoUri);
-      await client.connect();
+      await safeAsyncOperation(async () => {
+        await client.connect();
+      }, getErrorMessage('Failed to connect client'));
       
       // Insert test data
       const labels = [
@@ -408,7 +404,9 @@ describe("MongoDBClient", () => {
     
     it('should handle findOne with different scenarios', async () => {
       const client = new MongoDBClient(mongoUri);
-      await client.connect();
+      await safeAsyncOperation(async () => {
+        await client.connect();
+      }, getErrorMessage('Failed to connect client'));
       
       // Test finding existing label
       const label = {
@@ -434,3 +432,9 @@ describe("MongoDBClient", () => {
     }, TEST_TIMEOUT);
   });
 });
+
+function safeAsyncOperation<T>(operation: () => Promise<T>, errorMessage: string): Promise<T> {
+  return operation().catch(error => {
+    throw new Error(errorMessage);
+  });
+}

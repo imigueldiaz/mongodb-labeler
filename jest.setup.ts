@@ -1,69 +1,17 @@
 // Import the specific types we need from Node.js
 import type { TimerOptions } from 'node:timers';
+import { MongoMemoryServer } from 'mongodb-memory-server';
 
 // Define proper types for our global mocks
 declare global {
   var mockFindLabelsError: boolean;
   var mockLabels: unknown[] | undefined;
+  var __MONGOD__: MongoMemoryServer;
 }
 
 // Initialize global mocks
 globalThis.mockFindLabelsError = false;
 globalThis.mockLabels = undefined;
-
-// Store original timer functions
-const originalSetTimeout = global.setTimeout;
-const originalClearTimeout = global.clearTimeout;
-
-// We need to track both Timeout objects and numbers since Node.js can return either
-const activeTimers = new Set<NodeJS.Timeout | number>();
-
-// Create our timer wrapper function with the correct type signature
-function createSetTimeout() {
-  type CustomSetTimeout = {
-    (handler: string | Function, ms?: number, ...args: any[]): NodeJS.Timeout | number;
-    __promisify__: typeof originalSetTimeout.__promisify__;
-  }
-
-  const setTimeout = function(
-    handler: string | Function,
-    ms?: number,
-    ...args: any[]
-  ): NodeJS.Timeout | number {
-    // Call the original setTimeout and track the result
-    const timer = originalSetTimeout(handler, ms, ...args);
-    activeTimers.add(timer);
-    return timer;
-  } as CustomSetTimeout;
-
-  // Copy over the promisify property using Object.defineProperty
-  Object.defineProperty(setTimeout, '__promisify__', {
-    value: originalSetTimeout.__promisify__,
-    writable: false,
-    enumerable: true,
-    configurable: true
-  });
-
-  return setTimeout as unknown as typeof global.setTimeout;
-}
-
-// Create our clearTimeout wrapper with the correct signature
-function createClearTimeout() {
-  return function clearTimeout(timeoutId?: string | number | NodeJS.Timeout | undefined): void {
-    if (timeoutId !== undefined) {
-      activeTimers.delete(timeoutId as NodeJS.Timeout | number);
-      originalClearTimeout(timeoutId);
-    }
-  };
-}
-
-// Create our wrapped versions of the timer functions
-const customSetTimeout = createSetTimeout();
-const customClearTimeout = createClearTimeout();
-
-// Apply our wrapped versions to the global scope
-global.setTimeout = customSetTimeout;
-global.clearTimeout = customClearTimeout;
 
 // Mock XRPC Error
 jest.mock("@atproto/xrpc", () => ({
@@ -80,28 +28,29 @@ jest.mock("@atproto/xrpc", () => ({
 // Set shorter Jest timeout globally
 jest.setTimeout(10000); // 10 seconds default timeout
 
+// Helper function to get MongoDB URI with type safety
+export function getMongodUri(): string {
+  if (!globalThis.__MONGOD__) {
+    throw new Error('MongoDB Memory Server not initialized');
+  }
+  return globalThis.__MONGOD__.getUri();
+}
+
+// Start MongoDB Memory Server once for all tests
+beforeAll(async () => {
+  globalThis.__MONGOD__ = await MongoMemoryServer.create();
+});
+
+// Clean up MongoDB Memory Server after all tests
+afterAll(async () => {
+  if (globalThis.__MONGOD__) {
+    await globalThis.__MONGOD__.stop();
+  }
+});
+
 // Clean up after each test
 afterEach(() => {
-  // Clear all active timers
-  activeTimers.forEach(timer => {
-    originalClearTimeout(timer);
-  });
-  activeTimers.clear();
-
   // Reset mock states
   globalThis.mockFindLabelsError = false;
   globalThis.mockLabels = undefined;
-});
-
-// Clean up after all tests
-afterAll(() => {
-  // Restore original timer functions
-  global.setTimeout = originalSetTimeout;
-  global.clearTimeout = originalClearTimeout;
-  
-  // Clear any remaining timers
-  activeTimers.forEach(timer => {
-    originalClearTimeout(timer);
-  });
-  activeTimers.clear();
 });
