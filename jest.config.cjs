@@ -18,7 +18,8 @@ module.exports = {
   collectCoverage: true,
   coverageDirectory: "coverage",
   coverageReporters: ["text-summary", "lcov", "html"],
-  verbose: true,
+  verbose: false,
+  silent: true,
   testLocationInResults: true,
   testRunner: "jest-circus/runner",
   reporters: [
@@ -32,7 +33,7 @@ module.exports = {
       addFileAttribute: true,
     }],
   ],
-  testTimeout: 60000,
+  testTimeout: 30000,
   forceExit: true,
   logHeapUsage: true,
   maxWorkers: 1,

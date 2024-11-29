@@ -39,11 +39,18 @@ jobs:
       - name: Run Tests
         run: |
           echo "Starting tests..."
-          npm test -- --coverage --forceExit || true
-          echo "Tests finished with exit code $?"
+          timeout 5m npm test -- --coverage --forceExit --silent || true
+          EXIT_CODE=$?
+          if [ $EXIT_CODE -eq 124 ]; then
+            echo "Test execution timed out after 5 minutes"
+            exit 1
+          elif [ $EXIT_CODE -ne 0 ]; then
+            echo "Tests failed with exit code $EXIT_CODE"
+            exit $EXIT_CODE
+          fi
         env:
           CI: true
-          DEBUG: "*"
+          DEBUG: "mongodb-memory-server"
 
       # 8. Upload coverage to Codecov (optional)
       - name: Upload Coverage to Codecov
