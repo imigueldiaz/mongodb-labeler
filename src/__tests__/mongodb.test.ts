@@ -2,6 +2,7 @@ import { MongoDBClient } from "../mongodb.js";
 import type { UnsignedLabel } from "../util/types.js";
 import { getMongodUri } from "../../jest.setup";
 import { getErrorMessage } from "../util/errorUtils";
+import { describe, it, expect, beforeAll, afterAll, afterEach, beforeEach, vi } from 'vitest';
 
 const TEST_TIMEOUT = 35000;
 
@@ -39,7 +40,7 @@ describe("MongoDBClient", () => {
     
     it("should handle errors in updateLabel", async () => {
       const mockCollection = {
-        updateOne: jest.fn().mockRejectedValue(new Error("Update failed")),
+        updateOne: vi.fn().mockRejectedValue(new Error("Update failed")),
       };
       
       Object.defineProperty(client, "_labels", {
@@ -62,10 +63,10 @@ describe("MongoDBClient", () => {
     
     it("should handle errors in getLabelsAfterCursor", async () => {
       const mockCollection = {
-        find: jest.fn().mockReturnValue({
-          sort: jest.fn().mockReturnValue({
-            limit: jest.fn().mockReturnValue({
-              toArray: jest.fn().mockRejectedValue(new Error("Failed to get labels after cursor")),
+        find: vi.fn().mockReturnValue({
+          sort: vi.fn().mockReturnValue({
+            limit: vi.fn().mockReturnValue({
+              toArray: vi.fn().mockRejectedValue(new Error("Failed to get labels after cursor")),
             }),
           }),
         }),
@@ -89,8 +90,8 @@ describe("MongoDBClient", () => {
     
     it("should handle first label creation with _getNextId", async () => {
       const mockCollection = {
-        findOne: jest.fn().mockResolvedValue(null),
-        insertOne: jest.fn().mockResolvedValue({ acknowledged: true }),
+        findOne: vi.fn().mockResolvedValue(null),
+        insertOne: vi.fn().mockResolvedValue({ acknowledged: true }),
       };
       
       Object.defineProperty(client, "_labels", {
@@ -114,10 +115,10 @@ describe("MongoDBClient", () => {
     it("should handle errors in listCollections during connect", async () => {
       const client = new MongoDBClient(mongoUri);
       const mockDb = {
-        listCollections: jest.fn().mockReturnValue({
-          toArray: jest.fn().mockRejectedValue(new Error("Failed to list collections")),
+        listCollections: vi.fn().mockReturnValue({
+          toArray: vi.fn().mockRejectedValue(new Error("Failed to list collections")),
         }),
-        collection: jest.fn(),
+        collection: vi.fn(),
       };
       
       // Mock the internal _db property after connect is called
@@ -137,14 +138,14 @@ describe("MongoDBClient", () => {
     it("should handle errors in createIndex during connect", async () => {
       const client = new MongoDBClient(mongoUri);
       const mockCollection = {
-        createIndex: jest.fn().mockRejectedValue(new Error("Failed to create index")),
+        createIndex: vi.fn().mockRejectedValue(new Error("Failed to create index")),
       };
       const mockDb = {
-        listCollections: jest.fn().mockReturnValue({
-          toArray: jest.fn().mockResolvedValue([]),
+        listCollections: vi.fn().mockReturnValue({
+          toArray: vi.fn().mockResolvedValue([]),
         }),
-        createCollection: jest.fn().mockResolvedValue(mockCollection),
-        collection: jest.fn().mockReturnValue(mockCollection),
+        createCollection: vi.fn().mockResolvedValue(mockCollection),
+        collection: vi.fn().mockReturnValue(mockCollection),
       };
       
       // Mock the internal _db property after connect is called
@@ -162,13 +163,13 @@ describe("MongoDBClient", () => {
     }, TEST_TIMEOUT);
     
     it('should handle MongoDB connection errors with invalid URI', async () => {
-      const client = new MongoDBClient('mongodb://invalid:27017');
+      const client = new MongoDBClient('mongodb://localhost:1323');
       await expect(client.connect()).rejects.toThrow('Failed to connect to MongoDB');
     }, TEST_TIMEOUT);
     
     it('should handle errors in _getNextId', async () => {
       const mockCollection = {
-        findOne: jest.fn().mockRejectedValue(new Error('Database error')),
+        findOne: vi.fn().mockRejectedValue(new Error('Database error')),
       };
       
       Object.defineProperty(client, '_labels', {
@@ -236,8 +237,8 @@ describe("MongoDBClient", () => {
     
     it('should handle errors in findLabels query execution', async () => {
       const mockCollection = {
-        find: jest.fn().mockReturnValue({
-          toArray: jest.fn().mockRejectedValue(new Error('Query execution failed')),
+        find: vi.fn().mockReturnValue({
+          toArray: vi.fn().mockRejectedValue(new Error('Query execution failed')),
         }),
       };
       
@@ -251,7 +252,7 @@ describe("MongoDBClient", () => {
     
     it("should handle errors in findOne when collection is initialized", async () => {
       const mockCollection = {
-        findOne: jest.fn().mockRejectedValue(new Error("Find operation failed")),
+        findOne: vi.fn().mockRejectedValue(new Error("Find operation failed")),
       };
       
       Object.defineProperty(client, "_labels", {
@@ -264,8 +265,8 @@ describe("MongoDBClient", () => {
     
     it("should handle errors in findLabels when collection is initialized", async () => {
       const mockCollection = {
-        find: jest.fn().mockReturnValue({
-          toArray: jest.fn().mockRejectedValue(new Error("Find operation failed")),
+        find: vi.fn().mockReturnValue({
+          toArray: vi.fn().mockRejectedValue(new Error("Find operation failed")),
         }),
       };
       
@@ -279,8 +280,8 @@ describe("MongoDBClient", () => {
     
     it("should handle errors in saveLabel collection operation", async () => {
       const mockCollection = {
-        findOne: jest.fn().mockResolvedValue({ id: 1 }),
-        insertOne: jest.fn().mockRejectedValue(new Error("Insert failed")),
+        findOne: vi.fn().mockResolvedValue({ id: 1 }),
+        insertOne: vi.fn().mockRejectedValue(new Error("Insert failed")),
       };
       
       Object.defineProperty(client, "_labels", {
@@ -303,7 +304,7 @@ describe("MongoDBClient", () => {
     
     it("should handle errors in getting next ID during saveLabel", async () => {
       const mockCollection = {
-        findOne: jest.fn().mockRejectedValue(new Error("Find operation failed")),
+        findOne: vi.fn().mockRejectedValue(new Error("Find operation failed")),
       };
       
       Object.defineProperty(client, "_labels", {
@@ -434,7 +435,7 @@ describe("MongoDBClient", () => {
 });
 
 function safeAsyncOperation<T>(operation: () => Promise<T>, errorMessage: string): Promise<T> {
-  return operation().catch(error => {
+  return operation().catch(_error => {
     throw new Error(errorMessage);
   });
 }

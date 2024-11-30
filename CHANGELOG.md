@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.4.0] - 2024-03-19
+
+### Changed
+
+- Migrated test framework from Jest to Vitest for improved performance and developer experience
+- Enhanced test execution and coverage workflow configuration
+- Optimized test configuration with improved timeout settings
+- Updated test script in coverage workflow with better handling of completion
+- Improved CI/CD pipeline configuration and performance
+
 ## [0.3.3] - 2024-03-19
 
 ### Fixed

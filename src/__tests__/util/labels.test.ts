@@ -1,6 +1,6 @@
 import { formatLabel, labelIsSigned, signLabel } from "../../util/labels.js";
 import { UnsignedLabel } from "../../util/types.js";
-
+import { describe, it, expect } from "vitest";
 describe("Label Utils", () => {
   describe("formatLabel", () => {
     it("should format label with Uint8Array signature", () => {

@@ -1,6 +1,7 @@
 // Import the specific types we need from Node.js
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import { MongoClient } from 'mongodb';
+import { vi, beforeAll, afterAll, afterEach } from 'vitest';
 
 // Define proper types for our global mocks
 declare global {
@@ -14,7 +15,7 @@ globalThis.mockFindLabelsError = false;
 globalThis.mockLabels = undefined;
 
 // Mock XRPC Error
-jest.mock("@atproto/xrpc", () => ({
+vi.mock("@atproto/xrpc", () => ({
   XRPCError: class XRPCError extends Error {
     status: number;
     constructor(status: number, message: string) {
@@ -24,9 +25,6 @@ jest.mock("@atproto/xrpc", () => ({
     }
   },
 }));
-
-// Set Jest timeout globally - using the same value as in jest.config.cjs
-jest.setTimeout(30000); // 30 seconds default timeout
 
 // Helper function to get MongoDB URI with type safety
 export function getMongodUri(): string {

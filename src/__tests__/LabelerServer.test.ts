@@ -4,7 +4,7 @@ import type { LabelerOptions } from "../LabelerServer.js";
 import type { SavedLabel, UnsignedLabel, CreateLabelData } from "../util/types.js";
 import { getMongodUri } from "../../jest.setup";
 import { safeAsyncOperation, getErrorMessage } from "../util/errorUtils";
-
+import { describe, it, expect, beforeAll, afterAll, afterEach, beforeEach, vi } from 'vitest';
 const TEST_TIMEOUT = 35000;
 const SETUP_TIMEOUT = 120000; // 2 minutos para la descarga del servidor
 
@@ -66,7 +66,7 @@ describe("LabelerServer", () => {
 
   describe("MongoDB Operations", () => {
     // Increase timeout for MongoDB operations
-    jest.setTimeout(120000); // 2 minutes
+   
 
     it("should handle invalid MongoDB URI", async () => {
       await safeAsyncOperation(async () => {
@@ -106,7 +106,7 @@ describe("LabelerServer", () => {
     it("should handle errors in close", async () => {
       await safeAsyncOperation(async () => {
         // Mock the MongoDBClient's close method to fail
-        const mockClose = jest.fn().mockRejectedValueOnce(new Error("Close failed"));
+        const mockClose = vi.fn().mockRejectedValueOnce(new Error("Close failed"));
         const originalClose = server.db.close.bind(server.db);
         server.db.close = mockClose;
 
@@ -221,8 +221,8 @@ describe("LabelerServer", () => {
 
       it("should reverse label negation", async () => {
         await safeAsyncOperation(async () => {
-          jest.spyOn(server.db, "findLabels").mockResolvedValue([mockLabel]);
-          jest.spyOn(server.db, "updateLabel").mockResolvedValue(true);
+          vi.spyOn(server.db, "findLabels").mockResolvedValue([mockLabel]);
+          vi.spyOn(server.db, "updateLabel").mockResolvedValue(true);
 
           const result = await server.reverseLabelNegation(1, true);
           expect(result).not.toBeNull();
@@ -232,7 +232,7 @@ describe("LabelerServer", () => {
 
       it("should handle non-existent label in reverseLabelNegation", async () => {
         await safeAsyncOperation(async () => {
-          jest.spyOn(server.db, "findLabels").mockResolvedValue([]);
+          vi.spyOn(server.db, "findLabels").mockResolvedValue([]);
 
           const result = await server.reverseLabelNegation(999);
           expect(result).toBeNull();
@@ -241,7 +241,7 @@ describe("LabelerServer", () => {
 
       it("should handle database error in reverseLabelNegation", async () => {
         await safeAsyncOperation(async () => {
-          jest.spyOn(server.db, "findLabels").mockRejectedValue(new Error("Failed to reverse label negation"));
+          vi.spyOn(server.db, "findLabels").mockRejectedValue(new Error("Failed to reverse label negation"));
 
           await expect(server.reverseLabelNegation(1)).rejects.toThrow("Failed to reverse label negation");
         }, getErrorMessage('Failed to handle database error in reverseLabelNegation'));
@@ -312,7 +312,7 @@ describe("LabelerServer", () => {
         const futureDate = new Date();
         futureDate.setDate(futureDate.getDate() + 1); // Set expiration to tomorrow
         
-        const validLabel = await server.createLabel({
+         await server.createLabel({
           uri: "at://test.com/123",
           cid: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
           val: "test-future",
@@ -324,7 +324,7 @@ describe("LabelerServer", () => {
         const pastDate = new Date();
         pastDate.setDate(pastDate.getDate() - 1); // Set expiration to yesterday
         
-        const expiredLabel = await server.createLabel({
+        await server.createLabel({
           uri: "at://test.com/456",
           cid: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
           val: "test-expired",
@@ -392,8 +392,8 @@ describe("LabelerServer", () => {
 
         // Mock database error
         const mockDb = {
-          findOne: jest.fn().mockRejectedValue(new Error('Database error')),
-          findLabels: jest.fn().mockRejectedValue(new Error('Database error')),
+          findOne: vi.fn().mockRejectedValue(new Error('Database error')),
+          findLabels: vi.fn().mockRejectedValue(new Error('Database error')),
         };
 
         Object.defineProperty(server, 'db', {
@@ -424,7 +424,7 @@ describe("LabelerServer", () => {
 
         // Test with database error
         const mockDb = {
-          findOne: jest.fn().mockRejectedValue(new Error('Database error')),
+          findOne: vi.fn().mockRejectedValue(new Error('Database error')),
         };
 
         Object.defineProperty(server, 'db', {
@@ -443,7 +443,7 @@ describe("LabelerServer", () => {
         await server.getInitializationPromise();
 
         // Mock findLabels to return a non-array value
-        jest.spyOn(server.db, "findLabels").mockResolvedValue({} as unknown as Promise<SavedLabel[]>);
+        vi.spyOn(server.db, "findLabels").mockResolvedValue({} as unknown as SavedLabel[]);
 
         await expect(server.queryLabels()).rejects.toThrow("Failed to query labels");
       }, getErrorMessage('Failed to handle non-array response in queryLabels'));
@@ -457,7 +457,7 @@ describe("LabelerServer", () => {
         // Mock the signer to fail
         Object.defineProperty(server, "_signer", {
           value: {
-            sign: jest.fn().mockRejectedValue(new Error("Signing failed")),
+            sign: vi.fn().mockRejectedValue(new Error("Signing failed")),
           },
           writable: true,
         });
@@ -479,7 +479,7 @@ describe("LabelerServer", () => {
         await server.getInitializationPromise();
 
         // Mock findOne to return a label and saveLabel to fail
-        jest.spyOn(server.db, "findOne").mockResolvedValue({
+        vi.spyOn(server.db, "findOne").mockResolvedValue({
           id: 1,
           val: "test",
           uri: "at://test.com",
@@ -490,7 +490,7 @@ describe("LabelerServer", () => {
           sig: new ArrayBuffer(0),
         });
 
-        jest.spyOn(server.db, "saveLabel").mockRejectedValue(new Error("Save failed"));
+        vi.spyOn(server.db, "saveLabel").mockRejectedValue(new Error("Save failed"));
 
         await expect(server.deleteLabel(1)).rejects.toThrow("Failed to save negated label to database");
       }, getErrorMessage('Failed to handle errors when saving negated label in deleteLabel'));
@@ -502,7 +502,7 @@ describe("LabelerServer", () => {
         await server.getInitializationPromise();
 
         // Mock findOne to return a label and signer to fail
-        jest.spyOn(server.db, "findOne").mockResolvedValue({
+        vi.spyOn(server.db, "findOne").mockResolvedValue({
           id: 1,
           val: "test",
           uri: "at://test.com",
@@ -515,7 +515,7 @@ describe("LabelerServer", () => {
 
         Object.defineProperty(server, "_signer", {
           value: {
-            sign: jest.fn().mockRejectedValue(new Error("Signing failed")),
+            sign: vi.fn().mockRejectedValue(new Error("Signing failed")),
           },
           writable: true,
         });

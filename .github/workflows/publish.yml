@@ -42,7 +42,7 @@ jobs:
         run: |
           npm run build
           npm run lint
-          npm run test
+          npx vitest run --no-watch --pool=forks --no-threads --silents
 
       - run: npm publish --access public --provenance --no-git-checks
         env:
@@ -74,7 +74,7 @@ jobs:
         run: |
           npm run build
           npm run lint
-          npm run test
+          npx vitest run --no-watch --pool=forks --no-threads --silent
 
       - run: npm publish --access public --provenance --no-git-checks
         env:

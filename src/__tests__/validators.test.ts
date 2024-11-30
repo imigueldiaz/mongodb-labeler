@@ -1,6 +1,8 @@
 // Mock @atproto/syntax before imports
-jest.mock("@atproto/syntax", () => ({
-  AtUri: jest.fn().mockImplementation((uri: string) => {
+import { vi } from 'vitest';
+
+vi.mock("@atproto/syntax", () => ({
+  AtUri: vi.fn().mockImplementation((uri: string) => {
     if (uri === "at://mock/error") {
       throw new Error("Mock AtUri error");
     }
@@ -10,6 +12,7 @@ jest.mock("@atproto/syntax", () => ({
 
 import { validateAtUri, validateCid, validateDid, validateVal, validateCts, validateExp } from "../util/validators";
 import { AtProtocolValidationError } from "../util/validators";
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 
 describe("DID Validation", () => {
   // Test valid DIDs
@@ -302,13 +305,13 @@ describe("Timestamp Validation", () => {
   const mockNow = new Date("2023-12-25T12:00:00Z");
 
   beforeAll(() => {
-    // Mock Date.now() and new Date() using Jest
-    jest.useFakeTimers();
-    jest.setSystemTime(mockNow);
+    // Mock Date.now() and new Date() using vi
+    vi.useFakeTimers();
+    vi.setSystemTime(mockNow);
   });
 
   afterAll(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   describe("Creation Timestamp (cts)", () => {
