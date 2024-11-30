@@ -38,7 +38,7 @@ jobs:
       - name: Run Tests with Coverage
         run: |
           echo "Starting tests with coverage..."
-          npx vitest run --coverage --pool=forks --no-threads --silent
+          npx vitest run --coverage
         env:
           CI: true
           DEBUG: "mongodb-memory-server"
