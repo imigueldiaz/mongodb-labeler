@@ -169,11 +169,22 @@ describe("MongoDBClient", () => {
     
     it('should handle errors in _getNextId', async () => {
       const mockCollection = {
-        findOne: vi.fn().mockRejectedValue(new Error('Database error')),
+        findOneAndUpdate: vi.fn().mockRejectedValue(new Error("Database error")),
       };
       
-      Object.defineProperty(client, '_labels', {
-        value: mockCollection,
+      const mockDb = {
+        collection: vi.fn().mockReturnValue(mockCollection),
+      };
+      
+      Object.defineProperty(client, '_db', {
+        value: mockDb,
+        writable: true,
+      });
+
+      Object.defineProperty(client, "_labels", {
+        value: {
+          insertOne: vi.fn().mockResolvedValue({ acknowledged: true }),
+        },
         writable: true,
       });
       
@@ -187,7 +198,39 @@ describe("MongoDBClient", () => {
         sig: new ArrayBuffer(0),
       };
       
-      await expect(client.saveLabel(testLabel)).rejects.toThrow('Failed to get next ID');
+      await expect(client.saveLabel(testLabel)).rejects.toThrow('Failed to get next ID: Database error');
+    });
+    
+    it("should handle errors in getting next ID during saveLabel", async () => {
+      const mockDb = {
+        collection: vi.fn().mockReturnValue({
+          findOneAndUpdate: vi.fn().mockRejectedValue(new Error("Find operation failed")),
+        }),
+      };
+      
+      Object.defineProperty(client, '_db', {
+        value: mockDb,
+        writable: true,
+      });
+
+      Object.defineProperty(client, "_labels", {
+        value: {
+          insertOne: vi.fn().mockResolvedValue({ acknowledged: true }),
+        },
+        writable: true,
+      });
+      
+      const testLabel: UnsignedLabel & { sig: ArrayBuffer } = {
+        val: "test",
+        uri: "test://uri",
+        cid: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
+        cts: new Date().toISOString(),
+        src: "did:web:test.com" as `did:${string}`,
+        neg: false,
+        sig: new ArrayBuffer(0),
+      };
+      
+      await expect(client.saveLabel(testLabel)).rejects.toThrow("Failed to get next ID: Find operation failed");
     });
     
     it('should properly filter expired labels', async () => {
@@ -303,12 +346,21 @@ describe("MongoDBClient", () => {
     });
     
     it("should handle errors in getting next ID during saveLabel", async () => {
-      const mockCollection = {
-        findOne: vi.fn().mockRejectedValue(new Error("Find operation failed")),
+      const mockDb = {
+        collection: vi.fn().mockReturnValue({
+          findOneAndUpdate: vi.fn().mockRejectedValue(new Error("Find operation failed")),
+        }),
       };
       
+      Object.defineProperty(client, '_db', {
+        value: mockDb,
+        writable: true,
+      });
+
       Object.defineProperty(client, "_labels", {
-        value: mockCollection,
+        value: {
+          insertOne: vi.fn().mockResolvedValue({ acknowledged: true }),
+        },
         writable: true,
       });
       
@@ -322,7 +374,7 @@ describe("MongoDBClient", () => {
         sig: new ArrayBuffer(0),
       };
       
-      await expect(client.saveLabel(testLabel)).rejects.toThrow("Failed to get next ID");
+      await expect(client.saveLabel(testLabel)).rejects.toThrow("Failed to get next ID: Find operation failed");
     });
   });
   
@@ -365,7 +417,7 @@ describe("MongoDBClient", () => {
         await client.connect();
       }, getErrorMessage('Failed to connect client'));
       
-      // Insert test data
+      // Insert test data in parallel
       const labels = [
         { 
           src: 'did:test:1' as `did:${string}`, 

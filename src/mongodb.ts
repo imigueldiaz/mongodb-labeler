@@ -1,6 +1,12 @@
 import { Collection, Db, Filter, FindOptions, MongoClient } from "mongodb";
 import type { SavedLabel, UnsignedLabel } from "./util/types.js";
 
+interface Counter {
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  _id: string;
+  sequenceValue: number;
+}
+
 /**
  * Client for interacting with the MongoDB database where labels are stored.
  *
@@ -12,28 +18,23 @@ import type { SavedLabel, UnsignedLabel } from "./util/types.js";
  * @param collectionName The name of the collection to use. Defaults to 'labels'.
  */
 export class MongoDBClient {
-  private _client: MongoClient;
-  private _db: Db | undefined;
-  private _labels: Collection<SavedLabel> | undefined;
-  private _databaseName: string;
-  private _collectionName: string;
+  private _db?: Db;
+  private _client?: MongoClient;
+  private _labels?: Collection<SavedLabel>;
+  private readonly _url: string;
 
   /**
    * Create a new MongoDBClient instance.
    * @param uri The URI to connect to the MongoDB instance.
-   * @param databaseName The name of the database to use. Defaults to 'labeler'.
-   * @param collectionName The name of the collection to use. Defaults to 'labels'.
    */
-  constructor(uri: string, databaseName = "labeler", collectionName = "labels") {
+  constructor(uri: string) {
     if (!uri) {
       throw new Error("Missing required parameter: mongoUri");
     }
     if (!uri.startsWith("mongodb://") && !uri.startsWith("mongodb+srv://")) {
       throw new Error("Invalid scheme, expected connection string to start with \"mongodb://\" or \"mongodb+srv://\"");
     }
-    this._client = new MongoClient(uri);
-    this._databaseName = databaseName;
-    this._collectionName = collectionName;
+    this._url = uri;
   }
 
   /**
@@ -44,29 +45,30 @@ export class MongoDBClient {
    */
   async connect(): Promise<void> {
     try {
-      await this._client.connect();
-      this._db = this._client.db(this._databaseName);
+      this._client = await MongoClient.connect(this._url);
+      this._db = this._client.db();
+      this._labels = this._db.collection("labels");
 
       // Verificar si la colección existe
-      const collections = await this._db.listCollections({ name: this._collectionName }).toArray();
+      const collections = await this._db.listCollections({ name: "labels" }).toArray();
       const collectionExists = collections.length > 0;
 
       if (!collectionExists) {
-        console.log(`Creating collection ${this._collectionName}`);
+        console.log(`Creating collection labels`);
         // Crear la colección explícitamente
-        await this._db.createCollection(this._collectionName);
+        await this._db.createCollection("labels");
 
         // Obtener referencia a la colección recién creada
-        this._labels = this._db.collection(this._collectionName);
+        this._labels = this._db.collection("labels");
 
-        console.log(`Creating indexes for new collection ${this._collectionName}`);
+        console.log(`Creating indexes for new collection labels`);
         // Crear los índices necesarios
         await this._labels.createIndex({ uri: 1 });
         await this._labels.createIndex({ src: 1 });
         await this._labels.createIndex({ id: 1 }, { unique: true });
       } else {
         // Si la colección ya existe, solo obtener la referencia
-        this._labels = this._db.collection(this._collectionName);
+        this._labels = this._db.collection("labels");
       }
     } catch (error) {
       throw new Error(
@@ -76,13 +78,11 @@ export class MongoDBClient {
   }
 
   /**
-   * Close the connection to the MongoDB instance.
-   *
-   * This method should be called when the MongoDBClient is no longer needed.
+   * Close the connection to MongoDB.
    */
   async close(): Promise<void> {
-    if (!this._db) {
-      throw new Error("Client is not initialized");
+    if (!this._client) {
+      return;
     }
 
     try {
@@ -91,7 +91,6 @@ export class MongoDBClient {
       const wrappedError = new Error(
         `Failed to close MongoDB client: ${error instanceof Error ? error.message : String(error)}`,
       );
-      wrappedError.cause = error;
       throw wrappedError;
     }
   }
@@ -103,17 +102,28 @@ export class MongoDBClient {
    * @returns A promise that resolves to the saved label with an assigned ID.
    */
   async saveLabel(label: UnsignedLabel & { sig: ArrayBuffer }): Promise<SavedLabel> {
+    if (!this._labels) {
+      throw new Error("Failed to save label: Collection is not initialized");
+    }
+
     try {
-      const nextId = await this._getNextId();
-      const labelToSave = { ...label, id: nextId };
+      const id = await this._getNextId();
+      const savedLabel: SavedLabel = { ...label, id };
+      const result = await this._labels.insertOne(savedLabel);
 
-      await this._labels?.insertOne(labelToSave);
+      if (!result.acknowledged) {
+        throw new Error("Operation not acknowledged");
+      }
 
-      return labelToSave;
+      return savedLabel;
     } catch (error) {
-      throw new Error(
-        `Failed to save label: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      // If the error is from _getNextId, propagate it as is since it's already properly formatted
+      if (error instanceof Error && error.message.startsWith('Failed to get next ID')) {
+        throw error;
+      }
+      // For other errors, wrap them with the saveLabel context
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to save label: ${message}`);
     }
   }
 
@@ -191,21 +201,39 @@ export class MongoDBClient {
   }
 
   /**
-   * Retrieve the next available ID for a new label.
-   *
-   * This method finds the label with the highest existing ID in the collection.
-   * If no labels exist, it starts from 1. Otherwise, it increments the highest ID by 1.
-   *
+   * Retrieve the next available ID for a label using atomic operations.
+   * 
+   * This method uses MongoDB's findOneAndUpdate with upsert to atomically increment
+   * a counter, ensuring unique IDs even under concurrent operations.
+   * 
    * @returns A promise that resolves to the next available ID.
    */
   private async _getNextId(): Promise<number> {
+    if (!this._db) {
+      throw new Error("Failed to get next ID: Database is not initialized");
+    }
+
     try {
-      const lastLabel = await this._labels?.findOne({}, { sort: { id: -1 } });
-      return (lastLabel?.id ?? 0) + 1;
-    } catch (error) {
-      throw new Error(
-        `Failed to get next ID: ${error instanceof Error ? error.message : String(error)}`,
+      const counters = this._db.collection<Counter>('counters');
+      const result = await counters.findOneAndUpdate(
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        { _id: 'labelId' },
+        { $inc: { sequenceValue: 1 } },
+        { 
+          upsert: true,
+          returnDocument: 'after'
+        }
       );
+
+      if (!result) {
+        throw new Error("No result returned from findOneAndUpdate");
+      }
+
+      return result.sequenceValue;
+    } catch (error) {
+      // Wrap all errors with the "Failed to get next ID" prefix
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to get next ID: ${message}`);
     }
   }
 
