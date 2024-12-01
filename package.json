@@ -43,7 +43,6 @@
   "devDependencies": {
     "@atproto/common": "^0.4.4",
     "@atproto/xrpc": "^0.6.4",
-    "@types/jest": "^29.5.14",
     "@types/node": "^22.0.0",
     "@types/supertest": "^6.0.2",
     "@types/ws": "^8.5.13",

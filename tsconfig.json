@@ -10,14 +10,14 @@
     "strictNullChecks": true,
     "skipLibCheck": true,
     "lib": ["ES2022", "DOM"],
-    "types": ["node", "jest"],
+    "types": ["node", "vitest"],
     "strictPropertyInitialization": false,
     "allowJs": true
   },
   "include": [
     "src/**/*.ts",
     "src/**/__tests__/**/*.ts",
-    "jest.setup.ts"
+    "vitest.setup.ts"
   ],
   "exclude": [
     "node_modules",

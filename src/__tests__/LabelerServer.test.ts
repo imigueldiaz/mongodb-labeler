@@ -2,7 +2,7 @@ import { type Collection, MongoClient } from "mongodb";
 import { LabelerServer } from "../LabelerServer";
 import type { LabelerOptions } from "../LabelerServer.js";
 import type { SavedLabel, UnsignedLabel, CreateLabelData } from "../util/types.js";
-import { getMongodUri } from "../../jest.setup";
+import { getMongodUri } from "../../vitest.setup";
 import { safeAsyncOperation, getErrorMessage } from "../util/errorUtils";
 import { describe, it, expect, beforeAll, afterAll, afterEach, beforeEach, vi } from 'vitest';
 const TEST_TIMEOUT = 35000;
@@ -66,7 +66,7 @@ describe("LabelerServer", () => {
 
   describe("MongoDB Operations", () => {
     // Increase timeout for MongoDB operations
-   
+
 
     it("should handle invalid MongoDB URI", async () => {
       await safeAsyncOperation(async () => {

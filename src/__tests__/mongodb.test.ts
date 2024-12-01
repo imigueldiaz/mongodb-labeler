@@ -1,6 +1,6 @@
 import { MongoDBClient } from "../mongodb.js";
 import type { UnsignedLabel } from "../util/types.js";
-import { getMongodUri } from "../../jest.setup";
+import { getMongodUri } from "../../vitest.setup";
 import { getErrorMessage } from "../util/errorUtils";
 import { describe, it, expect, beforeAll, afterAll, afterEach, beforeEach, vi } from 'vitest';
 
