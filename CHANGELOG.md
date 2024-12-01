@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.3] - 2024-03-19
+
+### Changed
+
+- Enhanced package exports configuration to better support TypeScript types
+- Improved module resolution for both ESM and CommonJS environments
+- Updated package.json exports field with explicit type declarations
+
 ## [0.4.2] - 2024-03-19
 
 ### Fixed
