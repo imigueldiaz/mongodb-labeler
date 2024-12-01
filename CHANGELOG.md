@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.4.1] - 2024-03-19
+
+### Fixed
+
+- Enhanced error handling in MongoDB client operations
+- Improved error message consistency in _getNextId method
+- Fixed MongoDB collection mocks in tests for better reliability
+- Optimized error propagation in saveLabel method
+- Removed unused variables and improved test clarity
+
 ## [0.4.0] - 2024-03-19
 
 ### Changed
