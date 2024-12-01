@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.2] - 2024-03-19
+
+### Fixed
+
+- Fixed MongoDB client initialization to properly handle database and collection names
+- Improved error handling in database connection process
+- Simplified MongoDB client setup in LabelerServer
+
 ## [0.4.1] - 2024-03-19
 
 ### Fixed
