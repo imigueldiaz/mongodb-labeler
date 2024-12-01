@@ -97,7 +97,7 @@ export class LabelerServer {
       validateDid(options.did);
 
       // Initialize MongoDB client
-      this._db = new MongoDBClient(options.mongoUri, options.databaseName, options.collectionName);
+      this._db = new MongoDBClient(options.mongoUri);
 
       this._did = options.did;
       this._nextId = 1;

@@ -7,6 +7,7 @@ import { vi, beforeAll, afterAll, afterEach } from 'vitest';
 declare global {
   var mockFindLabelsError: boolean;
   var mockLabels: unknown[] | undefined;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   var __MONGOD__: MongoMemoryServer;
 }
 
@@ -16,6 +17,7 @@ globalThis.mockLabels = undefined;
 
 // Mock XRPC Error
 vi.mock("@atproto/xrpc", () => ({
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   XRPCError: class XRPCError extends Error {
     status: number;
     constructor(status: number, message: string) {
@@ -28,9 +30,7 @@ vi.mock("@atproto/xrpc", () => ({
 
 // Helper function to get MongoDB URI with type safety
 export function getMongodUri(): string {
-  if (!globalThis.__MONGOD__) {
-    throw new Error('MongoDB Memory Server not initialized');
-  }
+  
   return globalThis.__MONGOD__.getUri();
 }
 
@@ -67,10 +67,10 @@ afterAll(async () => {
     await new Promise(resolve => setTimeout(resolve, 1000));
     
     // Detenemos el servidor
-    if (globalThis.__MONGOD__) {
-      await globalThis.__MONGOD__.stop({ doCleanup: true });
-      console.log('MongoDB Memory Server stopped successfully');
-    }
+    
+    await globalThis.__MONGOD__.stop({ doCleanup: true });
+    console.log('MongoDB Memory Server stopped successfully');
+    
   } catch (error) {
     console.error('Failed to stop MongoDB Memory Server:', error);
     throw error;
