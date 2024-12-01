@@ -158,6 +158,11 @@ export class LabelerServer {
     try {
       await this.getInitializationPromise();
 
+      // Validate label version
+      if (data.ver !== 1) {
+        throw new AtProtocolValidationError("Label validation failed: Label version must be 1");
+      }
+
       // Validate label value
       validateVal(data.val);
 
@@ -197,6 +202,7 @@ export class LabelerServer {
       }
 
       const unsignedLabel: UnsignedLabel = {
+        ver: 1,
         val: data.val,
         uri: data.uri,
         ...(data.cid ? { cid: data.cid } : {}),
@@ -288,6 +294,7 @@ export class LabelerServer {
       }
 
       return {
+        ver: 1,
         val: label.val,
         uri: label.uri,
         cid: label.cid,
@@ -334,6 +341,7 @@ export class LabelerServer {
       }
 
       const unsignedLabel: UnsignedLabel = {
+        ver: 1,
         val: label.val,
         uri: label.uri,
         cid: label.cid,
@@ -405,6 +413,7 @@ export class LabelerServer {
       }
 
       const unsignedLabel: UnsignedLabel = {
+        ver: 1,
         val: label.val,
         uri: label.uri,
         cid: label.cid,

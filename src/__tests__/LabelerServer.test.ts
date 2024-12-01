@@ -180,6 +180,7 @@ describe("LabelerServer", () => {
         expDate.setDate(expDate.getDate() + 1); // Set expiration to tomorrow
 
         const testLabel: Omit<UnsignedLabel, "cts"> = {
+          ver: 1,
           val: "test",
           uri: "at://did:web:test.com/app.bsky.feed.post/test",
           cid: "bafyreie5cvv4h45feadlkyw2b2jmkrxhiwdwvqokkf7k3tvtc3xqbrnx7y",
@@ -197,6 +198,7 @@ describe("LabelerServer", () => {
       await safeAsyncOperation(async () => {
         // Test DID URI without CID (should work)
         const didLabel: CreateLabelData = {
+          ver: 1,
           val: "test",
           uri: "did:web:test.com",
         };
@@ -204,6 +206,7 @@ describe("LabelerServer", () => {
 
         // Test DID URI with CID (should fail)
         const didWithCidLabel: CreateLabelData = {
+          ver: 1,
           val: "test",
           uri: "did:web:test.com",
           cid: "bafyreie5cvv4h45feadlkyw2b2jmkrxhiwdwvqokkf7k3tvtc3xqbrnx7y",
@@ -212,6 +215,7 @@ describe("LabelerServer", () => {
 
         // Test AT URI with CID (should work)
         const atWithCidLabel: CreateLabelData = {
+          ver: 1,
           val: "test",
           uri: "at://did:web:test.com/app.bsky.feed.post/test",
           cid: "bafyreie5cvv4h45feadlkyw2b2jmkrxhiwdwvqokkf7k3tvtc3xqbrnx7y",
@@ -221,6 +225,7 @@ describe("LabelerServer", () => {
         // Test AT URI without CID (should work but log warning)
         const consoleSpy = vi.spyOn(console, 'warn');
         const atWithoutCidLabel: CreateLabelData = {
+          ver: 1,
           val: "test",
           uri: "at://did:web:test.com/app.bsky.feed.post/test",
         };
@@ -233,6 +238,7 @@ describe("LabelerServer", () => {
     it("should handle invalid label data", async () => {
       await safeAsyncOperation(async () => {
         const invalidLabel: Omit<UnsignedLabel, "cts"> = {
+          ver: 1,
           val: "",
           uri: "invalid-uri",
           cid: "invalid-cid",
@@ -247,6 +253,7 @@ describe("LabelerServer", () => {
     describe("Label Negation", () => {
       const mockLabel: SavedLabel = {
         id: 1,
+        ver: 1,
         val: "test-label",
         uri: "at://test.com",
         cid: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
@@ -294,6 +301,7 @@ describe("LabelerServer", () => {
         futureDate.setDate(futureDate.getDate() + 1); // Set expiration to tomorrow
         
         const labelData: CreateLabelData = {
+          ver: 1,
           uri: "at://test.com/123",
           cid: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
           val: "test-future",
@@ -316,9 +324,10 @@ describe("LabelerServer", () => {
         pastDate.setDate(pastDate.getDate() - 1); // Set expiration to yesterday
         
         const expiredLabelData: CreateLabelData = {
-          ...labelData,
+          ver: 1,
           uri: "at://test.com/456",
           val: "test-expired",
+          cid: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
           exp: pastDate.toISOString()
         };
         
@@ -350,6 +359,7 @@ describe("LabelerServer", () => {
         futureDate.setDate(futureDate.getDate() + 1); // Set expiration to tomorrow
         
          await server.createLabel({
+          ver: 1,
           uri: "at://test.com/123",
           cid: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
           val: "test-future",
@@ -362,6 +372,7 @@ describe("LabelerServer", () => {
         pastDate.setDate(pastDate.getDate() - 1); // Set expiration to yesterday
         
         await server.createLabel({
+          ver: 1,
           uri: "at://test.com/456",
           cid: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
           val: "test-expired",
@@ -386,6 +397,43 @@ describe("LabelerServer", () => {
     });
   });
 
+  describe("Label Version", () => {
+    it("should require version 1", async () => {
+      const invalidVersionLabel = {
+        ver: 2,
+        val: "test",
+        uri: "at://user.bsky.social/app.bsky.feed.post/3jxtb5w2g622y",
+        cid: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
+        neg: false,
+      } as unknown as CreateLabelData;
+      
+      await expect(server.createLabel(invalidVersionLabel))
+        .rejects.toThrow("Label validation failed: Label version must be 1");
+      
+      const missingVersionLabel = {
+        val: "test",
+        uri: "at://user.bsky.social/app.bsky.feed.post/3jxtb5w2g622y",
+        cid: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
+        neg: false,
+      } as unknown as CreateLabelData;
+      
+      await expect(server.createLabel(missingVersionLabel))
+        .rejects.toThrow("Label validation failed: Label version must be 1");
+    });
+    
+    it("should accept version 1", async () => {
+      const validLabel = await server.createLabel({
+        ver: 1,
+        val: "test",
+        uri: "at://user.bsky.social/app.bsky.feed.post/3jxtb5w2g622y",
+        cid: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
+        neg: false,
+      });
+      expect(validLabel).toBeDefined();
+      expect(validLabel.ver).toBe(1);
+    });
+  });
+
   describe("Additional Tests", () => {
     // Helper function to create a server instance
     async function createServer(): Promise<LabelerServer> {
@@ -400,6 +448,7 @@ describe("LabelerServer", () => {
         await server.getInitializationPromise();
 
         const invalidLabel: CreateLabelData = {
+          ver: 1,
           val: "test",
           uri: "invalid-uri",
           cid: "invalid-cid",
@@ -499,6 +548,7 @@ describe("LabelerServer", () => {
         });
 
         const validLabel: CreateLabelData = {
+          ver: 1,
           val: "test",
           uri: "at://user.bsky.social/app.bsky.feed.post/3jxtb5w2g622y",
           cid: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
@@ -517,6 +567,7 @@ describe("LabelerServer", () => {
         // Mock findOne to return a label and saveLabel to fail
         vi.spyOn(server.db, "findOne").mockResolvedValue({
           id: 1,
+          ver: 1,
           val: "test",
           uri: "at://test.com",
           cid: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
@@ -540,6 +591,7 @@ describe("LabelerServer", () => {
         // Mock findOne to return a label and signer to fail
         vi.spyOn(server.db, "findOne").mockResolvedValue({
           id: 1,
+          ver: 1,
           val: "test",
           uri: "at://test.com",
           cid: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
@@ -558,6 +610,24 @@ describe("LabelerServer", () => {
 
         await expect(server.deleteLabel(1)).rejects.toThrow("Failed to delete label");
       }, getErrorMessage('Failed to handle errors when signing negated label in deleteLabel'));
+    });
+
+    it("should return the correct label structure", async () => {
+      await safeAsyncOperation(async () => {
+        const label = await server.createLabel({
+          ver: 1,
+          val: "test",
+          uri: "at://user.bsky.social/app.bsky.feed.post/3jxtb5w2g622y",
+          cid: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
+        });
+
+        expect(label).toBeDefined();
+        expect(label.ver).toBe(1);
+        expect(label.val).toBe("test");
+        expect(label.uri).toBe("at://user.bsky.social/app.bsky.feed.post/3jxtb5w2g622y");
+        expect(label.cid).toBe("bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi");
+        expect(label.sig).toBeDefined();
+      }, getErrorMessage('Failed to return the correct label structure'));
     });
   });
 });

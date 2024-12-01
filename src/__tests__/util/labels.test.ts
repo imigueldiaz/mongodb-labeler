@@ -1,6 +1,7 @@
 import { formatLabel, labelIsSigned, signLabel } from "../../util/labels.js";
 import { UnsignedLabel } from "../../util/types.js";
 import { describe, it, expect } from "vitest";
+
 describe("Label Utils", () => {
   describe("formatLabel", () => {
     it("should format label with Uint8Array signature", () => {
@@ -11,6 +12,7 @@ describe("Label Utils", () => {
         neg: false,
         src: "did:web:test.com",
         cts: new Date().toISOString(),
+        ver: 1,
         sig: new Uint8Array([1, 2, 3, 4]),
       };
 
@@ -28,6 +30,7 @@ describe("Label Utils", () => {
         neg: false,
         src: "did:web:test.com",
         cts: new Date().toISOString(),
+        ver: 1,
         sig: { $bytes: "AQIDBA==" },
       };
 
@@ -45,6 +48,7 @@ describe("Label Utils", () => {
         neg: false,
         src: "did:web:test.com",
         cts: new Date().toISOString(),
+        ver: 1,
       };
 
       // Forzar un objeto con una firma inválida para probar el manejo de errores
@@ -66,6 +70,7 @@ describe("Label Utils", () => {
         neg: false,
         src: "did:web:test.com",
         cts: new Date().toISOString(),
+        ver: 1,
         sig: new Uint8Array([1, 2, 3, 4]),
       };
 
@@ -80,6 +85,7 @@ describe("Label Utils", () => {
         neg: false,
         src: "did:web:test.com",
         cts: new Date().toISOString(),
+        ver: 1,
       };
 
       expect(labelIsSigned(label)).toBe(false);
@@ -95,6 +101,7 @@ describe("Label Utils", () => {
         neg: false,
         src: "did:web:test.com",
         cts: new Date().toISOString(),
+        ver: 1,
       };
 
       // Usar una clave privada de prueba

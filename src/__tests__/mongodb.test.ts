@@ -55,6 +55,7 @@ describe("MongoDBClient", () => {
         cts: new Date().toISOString(),
         src: "did:web:test.com" as `did:${string}`,
         neg: false,
+        ver: 1 as const,
         sig: new ArrayBuffer(0),
       };
       
@@ -106,6 +107,7 @@ describe("MongoDBClient", () => {
         cts: new Date().toISOString(),
         src: "did:web:test.com" as `did:${string}`,
         neg: false,
+        ver: 1 as const,
         sig: new ArrayBuffer(0),
       };
       
@@ -195,6 +197,7 @@ describe("MongoDBClient", () => {
         cts: new Date().toISOString(),
         src: 'did:web:test.com' as `did:${string}`,
         neg: false,
+        ver: 1 as const,
         sig: new ArrayBuffer(0),
       };
       
@@ -227,6 +230,7 @@ describe("MongoDBClient", () => {
         cts: new Date().toISOString(),
         src: "did:web:test.com" as `did:${string}`,
         neg: false,
+        ver: 1 as const,
         sig: new ArrayBuffer(0),
       };
       
@@ -244,7 +248,7 @@ describe("MongoDBClient", () => {
       const futureDate = new Date(now.getTime() + 24 * 60 * 60 * 1000); // 1 day in future
       
       // Create expired and valid labels
-      const expiredLabel = {
+      const expiredLabel: UnsignedLabel & { sig: ArrayBuffer } = {
         src: 'did:test:expired' as `did:${string}`,
         uri: 'at://expired',
         cid: 'bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi',
@@ -252,10 +256,11 @@ describe("MongoDBClient", () => {
         neg: false,
         cts: now.toISOString(),
         exp: pastDate.toISOString(),
+        ver: 1 as const,
         sig: new ArrayBuffer(64)
       };
       
-      const validLabel = {
+      const validLabel: UnsignedLabel & { sig: ArrayBuffer } = {
         src: 'did:test:valid' as `did:${string}`,
         uri: 'at://valid',
         cid: 'bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi',
@@ -263,6 +268,7 @@ describe("MongoDBClient", () => {
         neg: false,
         cts: now.toISOString(),
         exp: futureDate.toISOString(),
+        ver: 1 as const,
         sig: new ArrayBuffer(64)
       };
       
@@ -339,6 +345,7 @@ describe("MongoDBClient", () => {
         cts: new Date().toISOString(),
         src: "did:web:test.com" as `did:${string}`,
         neg: false,
+        ver: 1 as const,
         sig: new ArrayBuffer(0),
       };
       
@@ -371,6 +378,7 @@ describe("MongoDBClient", () => {
         cts: new Date().toISOString(),
         src: "did:web:test.com" as `did:${string}`,
         neg: false,
+        ver: 1 as const,
         sig: new ArrayBuffer(0),
       };
       
@@ -392,13 +400,14 @@ describe("MongoDBClient", () => {
       }, getErrorMessage('Failed to connect client'));
       
       // Test successful save
-      const label = {
+      const label: UnsignedLabel & { sig: ArrayBuffer } = {
         src: 'did:example:123' as `did:${string}`,
         uri: 'at://test/123',
         cid: 'bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi',
         val: 'test',
         neg: false,
         cts: new Date().toISOString(),
+        ver: 1 as const,
         sig: new ArrayBuffer(64)
       };
       
@@ -418,7 +427,7 @@ describe("MongoDBClient", () => {
       }, getErrorMessage('Failed to connect client'));
       
       // Insert test data in parallel
-      const labels = [
+      const labels: Array<UnsignedLabel & { sig: ArrayBuffer }> = [
         { 
           src: 'did:test:1' as `did:${string}`, 
           uri: 'at://1', 
@@ -426,6 +435,7 @@ describe("MongoDBClient", () => {
           val: 'test1', 
           neg: false, 
           cts: new Date().toISOString(), 
+          ver: 1 as const,
           sig: new ArrayBuffer(64) 
         },
         { 
@@ -435,6 +445,7 @@ describe("MongoDBClient", () => {
           val: 'test2', 
           neg: true, 
           cts: new Date().toISOString(), 
+          ver: 1 as const,
           sig: new ArrayBuffer(64) 
         }
       ];
@@ -462,13 +473,14 @@ describe("MongoDBClient", () => {
       }, getErrorMessage('Failed to connect client'));
       
       // Test finding existing label
-      const label = {
+      const label: UnsignedLabel & { sig: ArrayBuffer } = {
         src: 'did:test:findone' as `did:${string}`,
         uri: 'at://findone',
         cid: 'bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi',
         val: 'test',
         neg: false,
         cts: new Date().toISOString(),
+        ver: 1 as const,
         sig: new ArrayBuffer(64)
       };
       

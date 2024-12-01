@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.6] - 2024-12-01
+
+### Changed
+- Enhanced version validation in label schema:
+  - Modified `CreateLabelData` interface to allow any number in `ver` field for testing flexibility
+  - Added runtime validation in `createLabel` to ensure `ver` is always 1
+  - Improved test coverage for version validation scenarios
+
 ## [0.4.5] - 2024-12-01
 
 ### Added
@@ -13,6 +21,10 @@
   - CID field is now omitted from the label object when not provided
 - Enhanced error messages for URI validation
 - Marked `validateAtUri` as deprecated in favor of `validateUri`
+- Simplified type definitions:
+  - `CreateLabelData` now extends from `UnsignedLabel`
+  - Removed duplicate field definitions
+  - Enforced literal type `1` for `ver` field
 
 ### Fixed
 - Validation now correctly handles the relationship between URI types and CID

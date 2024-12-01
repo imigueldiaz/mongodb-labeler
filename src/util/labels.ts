@@ -2,7 +2,7 @@ import { Secp256k1Keypair } from "@atproto/crypto";
 import type { FormattedLabel, SignedLabel, UnsignedLabel } from "./types.js";
 import { excludeNullish } from "./util.js";
 
-const LABEL_VERSION = 1;
+const LABEL_VERSION = 1 as const;
 
 function formatLabelCbor(label: UnsignedLabel): UnsignedLabel {
   return excludeNullish({ ...label, ver: LABEL_VERSION, neg: !!label.neg });

@@ -21,7 +21,14 @@ export type NonNullishPartial<T> =
 /**
  * Data required to create a label.
  */
+export type UnsignedLabel = Omit<ComAtprotoLabelDefs.Label, "sig"> & { ver: 1 };
+
+/**
+ * Data required to create a label.
+ */
 export interface CreateLabelData {
+  /** The label schema version. Current version is always 1. */
+  ver: number;
   /** The label value. */
   val: string;
   /** 
@@ -37,17 +44,17 @@ export interface CreateLabelData {
    * - Must not be provided for `did:` URIs
    * - Recommended to include for content-specific labels to reference a specific version
    */
-  cid?: string | undefined;
+  cid?: string;
   /** Whether this label is negating a previous instance of this label applied to the same subject. */
-  neg?: boolean | undefined;
+  neg?: boolean;
   /** The DID of the actor who created this label, if different from the labeler. Must start with 'did:'. */
   src?: `did:${string}`;
   /** The creation date of the label. Must be in ISO 8601 format. */
-  cts?: string | undefined;
+  cts?: string;
   /** The expiration date of the label, if any. Must be in ISO 8601 format. */
-  exp?: string | undefined;
+  exp?: string;
 }
-export type UnsignedLabel = Omit<ComAtprotoLabelDefs.Label, "sig">;
+
 export type SignedLabel = UnsignedLabel & { sig: Uint8Array };
 export type FormattedLabel = UnsignedLabel & { sig?: At.Bytes };
 export type SavedLabel = UnsignedLabel & { sig: ArrayBuffer; id: number };
