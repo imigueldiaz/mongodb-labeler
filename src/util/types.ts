@@ -24,9 +24,19 @@ export type NonNullishPartial<T> =
 export interface CreateLabelData {
   /** The label value. */
   val: string;
-  /** The subject of the label. If labeling an account, this should be a string beginning with `did:`. */
+  /** 
+   * The subject of the label. 
+   * - For labeling an account, this should be a string beginning with `did:`. CID must not be provided for DID URIs.
+   * - For labeling specific content, this should be a string beginning with `at://`. It's recommended to provide a CID 
+   *   for content-specific labels to reference a specific version.
+   */
   uri: string;
-  /** Optionally, a CID specifying the version of `uri` to label. */
+  /** 
+   * The CID specifying the version of the content to label. 
+   * - Only applicable for `at://` URIs
+   * - Must not be provided for `did:` URIs
+   * - Recommended to include for content-specific labels to reference a specific version
+   */
   cid?: string | undefined;
   /** Whether this label is negating a previous instance of this label applied to the same subject. */
   neg?: boolean | undefined;

@@ -69,18 +69,40 @@ export function validateDid(did: string): void {
  * @param uri - The URI to validate
  * @throws {AtProtocolValidationError} If the URI is invalid
  */
+export function validateUri(uri: string): void {
+  if (!uri) {
+    throw new AtProtocolValidationError("URI cannot be null or empty");
+  }
+
+  if (uri.startsWith("did:")) {
+    validateDid(uri);
+  } else if (uri.startsWith("at://")) {
+    try {
+      // AtUri from @atproto/syntax will perform complete validation
+      new AtUri(uri);
+    } catch (error) {
+      throw new AtProtocolValidationError(
+        `Invalid AT Protocol URI: ${error instanceof Error ? error.message : "unknown error"}`,
+      );
+    }
+  } else {
+    throw new AtProtocolValidationError("URI must start with either \"did:\" or \"at://\"");
+  }
+}
+
+/**
+ * @deprecated Use validateUri instead which supports both did: and at:// URIs
+ */
 export function validateAtUri(uri: string): void {
   if (!uri) {
     throw new AtProtocolValidationError("URI cannot be null or empty");
   }
 
-  // Basic AT Protocol URI validation
   if (!uri.startsWith("at://")) {
     throw new AtProtocolValidationError("Invalid AT Protocol URI: must start with \"at://\"");
   }
 
   try {
-    // AtUri from @atproto/syntax will perform complete validation
     new AtUri(uri);
   } catch (error) {
     throw new AtProtocolValidationError(

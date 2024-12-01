@@ -33,3 +33,9 @@ export async function signLabel(
 export function labelIsSigned<T extends UnsignedLabel>(label: T): label is T & SignedLabel {
   return "sig" in label && label.sig !== undefined;
 }
+
+export function generateExpiration(daysFromNow: number = 365): string {
+  const exp = new Date();
+  exp.setDate(exp.getDate() + daysFromNow);
+  return exp.toISOString();
+}

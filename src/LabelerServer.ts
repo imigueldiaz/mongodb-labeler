@@ -1,7 +1,7 @@
 import { Secp256k1Keypair } from "@atproto/crypto";
 import { MongoDBClient } from "./mongodb.js";
 import { CreateLabelData, SavedLabel, SignedLabel, UnsignedLabel } from "./util/types.js";
-import { AtProtocolValidationError, validateAtUri, validateCid, validateDid, validateVal, validateCts, validateExp } from "./util/validators.js";
+import { AtProtocolValidationError, validateCid, validateDid, validateVal, validateCts, validateExp, validateUri } from "./util/validators.js";
 
 /**
  * Error class for LabelerServer operations
@@ -162,11 +162,25 @@ export class LabelerServer {
       validateVal(data.val);
 
       // Validate URI
-      validateAtUri(data.uri);
+      validateUri(data.uri);
 
-      // Validate CID if provided
-      if (data.cid) {
-        validateCid(data.cid);
+      // Validate URI and CID relationship
+      if (data.uri.startsWith('did:')) {
+        if (data.cid) {
+          throw new AtProtocolValidationError("CID cannot be provided for DID URIs");
+        }
+      } else if (data.uri.startsWith('at://')) {
+        if (data.cid) {
+          validateCid(data.cid);
+        } else {
+          console.warn(
+            'Warning: Creating a label for an at:// URI without a CID. ' +
+            'Best practice is to include a CID for content-specific labels to reference a specific version. ' +
+            'The client should obtain the appropriate CID for the content being labeled.'
+          );
+        }
+      } else {
+        throw new AtProtocolValidationError("URI must start with either \"did:\" or \"at://\"");
       }
 
       // Validate source DID if provided
@@ -185,8 +199,8 @@ export class LabelerServer {
       const unsignedLabel: UnsignedLabel = {
         val: data.val,
         uri: data.uri,
-        cid: data.cid,
-        neg: data.neg ?? false,
+        ...(data.cid ? { cid: data.cid } : {}),
+        ...(data.neg ? { neg: true } : {}),
         exp: data.exp,
         cts,
         src: data.src ?? this.did,

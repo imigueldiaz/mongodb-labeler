@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.4.5] - 2024-12-01
+
+### Added
+- New `validateUri` function that properly handles both `did:` and `at://` URIs
+- Warning when creating a label for an `at://` URI without a CID
+
+### Changed
+- Improved URI and CID validation to follow atproto specification:
+  - CID is not allowed for `did:` URIs
+  - CID is recommended but optional for `at://` URIs
+  - CID field is now omitted from the label object when not provided
+- Enhanced error messages for URI validation
+- Marked `validateAtUri` as deprecated in favor of `validateUri`
+
+### Fixed
+- Validation now correctly handles the relationship between URI types and CID
+- Test coverage improved for URI and CID validation scenarios
+
 ## [0.4.4] - 2024-12-01
 
 ### Changed

@@ -193,6 +193,43 @@ describe("LabelerServer", () => {
       }, getErrorMessage('Failed to create label with expiration'));
     }, TEST_TIMEOUT);
 
+    it("should validate URI and CID relationship correctly", async () => {
+      await safeAsyncOperation(async () => {
+        // Test DID URI without CID (should work)
+        const didLabel: CreateLabelData = {
+          val: "test",
+          uri: "did:web:test.com",
+        };
+        await expect(server.createLabel(didLabel)).resolves.toBeDefined();
+
+        // Test DID URI with CID (should fail)
+        const didWithCidLabel: CreateLabelData = {
+          val: "test",
+          uri: "did:web:test.com",
+          cid: "bafyreie5cvv4h45feadlkyw2b2jmkrxhiwdwvqokkf7k3tvtc3xqbrnx7y",
+        };
+        await expect(server.createLabel(didWithCidLabel)).rejects.toThrow("CID cannot be provided for DID URIs");
+
+        // Test AT URI with CID (should work)
+        const atWithCidLabel: CreateLabelData = {
+          val: "test",
+          uri: "at://did:web:test.com/app.bsky.feed.post/test",
+          cid: "bafyreie5cvv4h45feadlkyw2b2jmkrxhiwdwvqokkf7k3tvtc3xqbrnx7y",
+        };
+        await expect(server.createLabel(atWithCidLabel)).resolves.toBeDefined();
+
+        // Test AT URI without CID (should work but log warning)
+        const consoleSpy = vi.spyOn(console, 'warn');
+        const atWithoutCidLabel: CreateLabelData = {
+          val: "test",
+          uri: "at://did:web:test.com/app.bsky.feed.post/test",
+        };
+        await expect(server.createLabel(atWithoutCidLabel)).resolves.toBeDefined();
+        expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Creating a label for an at:// URI without a CID'));
+        consoleSpy.mockRestore();
+      }, getErrorMessage('Failed to test URI and CID validation'));
+    }, TEST_TIMEOUT);
+
     it("should handle invalid label data", async () => {
       await safeAsyncOperation(async () => {
         const invalidLabel: Omit<UnsignedLabel, "cts"> = {
@@ -362,14 +399,13 @@ describe("LabelerServer", () => {
         const server = await createServer();
         await server.getInitializationPromise();
 
-        const invalidLabel = {
-          val: 'test',
-          uri: 'invalid-uri', // Invalid URI format
-          cid: 'invalid-cid', // Invalid CID format
-          src: 'did:test:123' as `did:${string}`,
+        const invalidLabel: CreateLabelData = {
+          val: "test",
+          uri: "invalid-uri",
+          cid: "invalid-cid",
         };
 
-        await expect(server.createLabel(invalidLabel)).rejects.toThrow('Label validation failed: Invalid AT Protocol URI: must start with "at://"');
+        await expect(server.createLabel(invalidLabel)).rejects.toThrow('Label validation failed: URI must start with either "did:" or "at://"');
       }, getErrorMessage('Failed to handle label validation errors'));
     });
 

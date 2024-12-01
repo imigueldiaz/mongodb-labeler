@@ -10,7 +10,7 @@ vi.mock("@atproto/syntax", () => ({
   }),
 }));
 
-import { validateAtUri, validateCid, validateDid, validateVal, validateCts, validateExp } from "../util/validators";
+import { validateCid, validateDid, validateVal, validateCts, validateExp, validateUri, validateAtUri } from "../util/validators";
 import { AtProtocolValidationError } from "../util/validators";
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 
@@ -131,7 +131,43 @@ describe("CID Validation", () => {
   });
 });
 
-describe("validateAtUri", () => {
+describe("URI Validation", () => {
+  it("should accept valid URIs", () => {
+    const validUris = [
+      "did:plc:user123",
+      "did:web:example.com",
+      "at://user.bsky.social/com.atproto.feed.post/123",
+      "at://did:plc:user123/com.atproto.feed.post/123"
+    ];
+
+    validUris.forEach(uri => {
+      expect(() => validateUri(uri)).not.toThrow();
+    });
+  });
+
+  it("should throw error for invalid URIs", () => {
+    const invalidUris = [
+      "",
+      "http://example.com",
+      "atp://invalid",
+      "did:invalid",
+      "at:invalid",
+      "something:else"
+    ];
+
+    invalidUris.forEach(uri => {
+      expect(() => validateUri(uri)).toThrow(AtProtocolValidationError);
+    });
+  });
+
+  it("should throw specific error for non did: or at:// URIs", () => {
+    expect(() => validateUri("http://example.com"))
+      .toThrow("URI must start with either \"did:\" or \"at://\"");
+  });
+});
+
+/** @deprecated */
+describe("validateAtUri (Deprecated)", () => {
   // Test invalid AT Protocol URIs
   it("should throw AtProtocolValidationError for URIs with invalid protocol", () => {
     const invalidProtocols = [
@@ -151,7 +187,6 @@ describe("validateAtUri", () => {
   });
 
   it("should throw AtProtocolValidationError when AtUri constructor fails", () => {
-    // Use our mocked URI that we know will cause AtUri to throw
     expect(() => {
       validateAtUri("at://mock/error");
     }).toThrow(AtProtocolValidationError);
@@ -162,27 +197,12 @@ describe("validateAtUri", () => {
 
   // Test edge cases
   it("should handle edge cases", () => {
-    // Empty string
-    expect(() => {
-      validateAtUri("");
-    }).toThrow(AtProtocolValidationError);
-    expect(() => {
-      validateAtUri("");
-    }).toThrow("URI cannot be null or empty");
-
-    // Null and undefined
-    expect(() => {
-      validateAtUri(null as unknown as string);
-    }).toThrow(AtProtocolValidationError);
-    expect(() => {
-      validateAtUri(null as unknown as string);
-    }).toThrow("URI cannot be null or empty");
-    expect(() => {
-      validateAtUri(undefined as unknown as string);
-    }).toThrow(AtProtocolValidationError);
-    expect(() => {
-      validateAtUri(undefined as unknown as string);
-    }).toThrow("URI cannot be null or empty");
+    expect(() => validateAtUri("")).toThrow(AtProtocolValidationError);
+    expect(() => validateAtUri("")).toThrow("URI cannot be null or empty");
+    expect(() => validateAtUri(null as unknown as string)).toThrow(AtProtocolValidationError);
+    expect(() => validateAtUri(null as unknown as string)).toThrow("URI cannot be null or empty");
+    expect(() => validateAtUri(undefined as unknown as string)).toThrow(AtProtocolValidationError);
+    expect(() => validateAtUri(undefined as unknown as string)).toThrow("URI cannot be null or empty");
   });
 });
 
