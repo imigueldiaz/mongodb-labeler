@@ -1,6 +1,14 @@
 # Changelog
 
-## [0.4.3] - 2024-03-19
+## [0.4.4] - 2024-12-01
+
+### Changed
+
+- Improved package exports configuration with better module resolution
+- Simplified index.ts exports using `export *` for utility modules
+- Added CHANGELOG.md to package files
+
+## [0.4.3] - 2024-12-01
 
 ### Changed
 
@@ -8,7 +16,7 @@
 - Improved module resolution for both ESM and CommonJS environments
 - Updated package.json exports field with explicit type declarations
 
-## [0.4.2] - 2024-03-19
+## [0.4.2] - 2024-12-01
 
 ### Fixed
 
@@ -16,7 +24,7 @@
 - Improved error handling in database connection process
 - Simplified MongoDB client setup in LabelerServer
 
-## [0.4.1] - 2024-03-19
+## [0.4.1] - 2024-12-01
 
 ### Fixed
 
@@ -26,7 +34,7 @@
 - Optimized error propagation in saveLabel method
 - Removed unused variables and improved test clarity
 
-## [0.4.0] - 2024-03-19
+## [0.4.0] - 2024-11-30
 
 ### Changed
 
@@ -36,7 +44,7 @@
 - Updated test script in coverage workflow with better handling of completion
 - Improved CI/CD pipeline configuration and performance
 
-## [0.3.3] - 2024-03-19
+## [0.3.3] - 2024-11-29
 
 ### Fixed
 
@@ -50,8 +58,7 @@
 - Modified timeout and log management in CI
 - Added timeout control to prevent infinite test execution
 
-
-## [0.3.2] - 2024-01-19
+## [0.3.2] - 2024-11-29
 
 ### Changed
 
@@ -59,7 +66,7 @@
 - Added explicit `strictNullChecks` configuration in tsconfig.json
 - Disabled specific ESLint rules for test files for better Jest compatibility
 
-## [0.3.1] - 2024-01-19
+## [0.3.1] - 2024-11-29
 
 ### Added
 
@@ -74,7 +81,7 @@
 - Refactored clearTimeout function and test cleanup actions
 - Added original Date.now tracking in Jest setup for better time handling in tests
 
-## [0.3.0] - 2024-01-17
+## [0.3.0] - 2024-11-29
 
 ### Added
 
@@ -103,3 +110,116 @@
 ### Dependencies
 
 - Added `date-fns` for improved date handling and validation
+
+## [0.2.9] - 2024-11-27
+
+### Changed
+
+- Enhanced MongoDB client configuration
+- Improved error handling in database operations
+- Updated documentation with more examples
+
+## [0.2.8] - 2024-11-27
+
+### Changed
+
+- Updated MongoDB client implementation
+- Enhanced error handling
+- Improved type definitions
+
+## [0.2.7] - 2024-11-26
+
+### Changed
+
+- Enhanced MongoDB operations
+- Improved error handling
+- Updated documentation
+
+## [0.2.6] - 2024-11-26
+
+### Changed
+
+- Updated MongoDB client
+- Enhanced error messages
+- Improved type safety
+
+## [0.2.5] - 2024-11-26
+
+### Changed
+
+- Enhanced database operations
+- Improved error handling
+- Updated documentation
+
+## [0.2.4] - 2024-11-24
+
+### Changed
+
+- Updated MongoDB operations
+- Enhanced error handling
+- Improved documentation
+
+## [0.2.3] - 2024-11-24
+
+### Changed
+
+- Enhanced database client
+- Improved error messages
+- Updated type definitions
+
+## [0.2.2] - 2024-11-24
+
+### Changed
+
+- Updated MongoDB operations
+- Enhanced error handling
+- Improved documentation
+
+## [0.2.1] - 2024-11-24
+
+### Changed
+
+- Enhanced database client
+- Improved error messages
+- Updated type definitions
+
+## [0.2.0] - 2024-11-23
+
+### Changed
+
+- Major update to MongoDB operations
+- Enhanced error handling system
+- Improved type safety
+- Updated documentation
+
+## [0.1.4] - 2024-11-23
+
+### Changed
+
+- Updated MongoDB client
+- Enhanced error handling
+- Improved documentation
+
+## [0.1.3] - 2024-11-21
+
+### Changed
+
+- Enhanced database operations
+- Improved error messages
+- Updated type definitions
+
+## [0.1.2] - 2024-11-21
+
+### Changed
+
+- Updated MongoDB client
+- Enhanced error handling
+- Improved documentation
+
+## [0.1.1] - 2024-11-21
+
+### Changed
+
+- Initial release with basic MongoDB operations
+- Basic error handling
+- Initial documentation
