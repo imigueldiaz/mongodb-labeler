@@ -3,7 +3,7 @@
 [![npm version](https://img.shields.io/npm/v/@imigueldiaz/mongodb-labeler.svg)](https://www.npmjs.com/package/@imigueldiaz/mongodb-labeler)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![NPM](https://img.shields.io/badge/npm-%23CB3837.svg?style=flat&logo=npm&logoColor=white)](https://www.npmjs.com/)
-[![Jest](https://img.shields.io/badge/tested_with-jest-%23C21325?logo=jest)](https://jestjs.io/)
+[![Vitest](https://img.shields.io/badge/tested_with-vitest-6E9F18?logo=vitest)](https://vitest.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-%23007ACC.svg?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![AT Protocol](https://img.shields.io/badge/AT_Protocol-compatible-blue)](https://atproto.com/)
 [![MongoDB](https://img.shields.io/badge/MongoDB-%234ea94b.svg?logo=mongodb&logoColor=white)](https://www.mongodb.com/)
@@ -39,23 +39,64 @@ npm install @imigueldiaz/mongodb-labeler
 ### Requirements
 
 - Node.js 22 or higher
-- MongoDB 4.4 or higher
+- MongoDB 6.0 or higher
 - npm (Node Package Manager)
 
 ## Usage
 
-```typescript
-import { MongoDBLabeler } from "@imigueldiaz/mongodb-labeler";
+### Basic Usage
 
-// Initialize the labeler
-const labeler = new MongoDBLabeler({
-  uri: "your-mongodb-uri",
-  database: "your-database",
-  collection: "your-collection",
+```typescript
+import { LabelerServer } from "@imigueldiaz/mongodb-labeler";
+
+// Initialize the labeler server
+const labeler = new LabelerServer({
+  did: "your-did",
+  signingKey: "your-signing-key",
+  mongoUri: "mongodb://localhost:27017",
+  databaseName: "labeler", // optional, defaults to 'labeler'
+  collectionName: "labels" // optional, defaults to 'labels'
 });
 
-// Start labeling session
-await labeler.start();
+// Create a label
+const label = await labeler.createLabel({
+  ver: 1,
+  val: "label-value",
+  uri: "at://did:example/repo/collection",
+  cid: "bafyreib2rxk3rh6kzwq"
+});
+
+// Query labels
+const labels = await labeler.queryLabels();
+
+// Query specific label
+const specificLabel = await labeler.queryLabel(1);
+
+// Delete a label
+const deletedLabel = await labeler.deleteLabel(1);
+
+// Close the connection when done
+await labeler.close();
+```
+
+### MongoDB Integration
+
+The labeler uses MongoDB for data persistence. Make sure you have MongoDB running and accessible. The connection URI should follow MongoDB's connection string format:
+
+```typescript
+// Local MongoDB instance
+const labeler = new LabelerServer({
+  did: "your-did",
+  signingKey: "your-signing-key",
+  mongoUri: "mongodb://localhost:27017"
+});
+
+// MongoDB Atlas
+const labeler = new LabelerServer({
+  did: "your-did",
+  signingKey: "your-signing-key",
+  mongoUri: "mongodb+srv://username:password@cluster.mongodb.net"
+});
 ```
 
 ## Configuration
@@ -64,29 +105,20 @@ The labeler can be configured with the following options:
 
 ```typescript
 {
-    /** The DID of the labeler account */
-    did: string;
+  /** The DID of the labeler account */
+  did: string;
 
-    /** The private signing key used for the labeler */
-    signingKey: string;
+  /** The private signing key for the labeler */
+  signingKey: string;
 
-    /** MongoDB connection URI */
-    mongoUri: string;
+  /** MongoDB connection URI */
+  mongoUri: string;
 
-    /** The name of the MongoDB database to use (defaults to 'labeler') */
-    databaseName?: string;
+  /** The name of the MongoDB database to use (defaults to 'labeler') */
+  databaseName?: string;
 
-    /** The name of the MongoDB collection to use */
-    collectionName?: string;
-
-    /** Custom authorization function for label creation */
-    auth?: (did: string) => boolean | Promise<boolean>;
-
-    /** Host to bind the server to */
-    host?: string;
-
-    /** Port to run the server on (defaults to 4100) */
-    port?: number;
+  /** The name of the MongoDB collection to use (defaults to 'labels') */
+  collectionName?: string;
 }
 ```
 
@@ -96,30 +128,64 @@ For basic MongoDB usage:
 import { MongoDBLabeler } from "@imigueldiaz/mongodb-labeler";
 
 const labeler = new MongoDBLabeler({
-  mongoUri: "mongodb://localhost:27017",
+  mongoUri: "mongodb://localhost:27017", // or "mongodb+srv://..."
+  signingKey: "your-signing-key",
+  did: "did:example:123",
   databaseName: "my_database",
   collectionName: "my_labels",
 });
 ```
 
-For ATProtocol usage:
+## ATProtocol Label Requirements
+
+Labels in ATProtocol must follow specific requirements:
+
+#### Label Structure
 
 ```typescript
-import { LabelerServer } from "@imigueldiaz/mongodb-labeler";
+{
+  ver: 1,                // Version (always 1)
+  val: "label-value",    // Label value (required)
+  uri: "at://...",       // Subject URI (required)
+  cid?: "bafy...",      // Content version (optional)
+  neg?: boolean,         // Negation flag (optional)
+  src?: "did:...",      // Source DID (optional)
+  cts: "timestamp",      // Creation timestamp
+  exp?: "timestamp"      // Expiration (optional)
+}
+```
 
-const server = new LabelerServer({
-  did: "your-did",
-  signingKey: "your-signing-key",
-  mongoUri: "mongodb://localhost:27017",
-  databaseName: "atproto_labels",
+#### Label Value Guidelines
+
+- Use lowercase kebab-case (e.g., `label-name`)
+- ASCII letters only (a-z)
+- No punctuation except internal hyphens
+- Maximum 128 bytes length
+- Prefix with `!` for system-level labels
+
+#### URI Requirements
+
+- For labeling accounts: URI must start with `did:` (no CID allowed)
+- For labeling content: URI must start with `at://` (CID recommended)
+
+#### Example Labels
+
+```typescript
+// Labeling an account
+const accountLabel = await labeler.createLabel({
+  ver: 1,
+  val: "account-status",
+  uri: "did:plc:1234567890",
+  src: "did:example:moderator"
 });
 
-server.start((error, address) => {
-  if (error) {
-    console.error(error);
-  } else {
-    console.log(`Labeler server listening on ${address}`);
-  }
+// Labeling specific content
+const contentLabel = await labeler.createLabel({
+  ver: 1,
+  val: "content-warning",
+  uri: "at://did:example/repo/collection",
+  cid: "bafyreib2rxk3rh6kzwq", // Specific version
+  exp: "2024-12-31T23:59:59Z"  // Optional expiration
 });
 ```
 
@@ -133,13 +199,35 @@ git clone https://github.com/imigueldiaz/mongodb-labeler.git
 
 # Install dependencies
 npm install
-
-# Run tests
-npm test
-
-# Build the project
-npm run build
 ```
+
+### Available Scripts
+
+- `npm run build` - Compiles TypeScript code
+- `npm run lint` - Runs ESLint for code linting
+- `npm run fmt` - Formats code using dprint
+- `npm test` - Runs Vitest tests
+- `npm run test:watch` - Runs tests in watch mode
+- `npm run test:coverage` - Generates test coverage report
+
+### Dependencies
+
+#### Core Dependencies
+
+- `@atproto/*` packages - For ATProtocol compatibility
+- `fastify` (^5.1.0) - Web framework
+- `mongodb` (^6.11.0) - MongoDB driver
+- `date-fns` (^4.1.0) - Date utility library
+- `ws` (^8.18.0) - WebSocket client and server
+
+#### Development Dependencies
+
+- `typescript` (^5.7.2) - TypeScript compiler
+- `vitest` (^2.1.6) - Testing framework
+- `@vitest/coverage-v8` - Code coverage tool
+- `eslint` (^9.15.0) - Code linting
+- `dprint` (^0.45.0) - Code formatting
+- `mongodb-memory-server` - In-memory MongoDB for testing
 
 ## Contributing
 
@@ -151,7 +239,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Author
 
-- Ignacio de Miguel Díaz
+- Ignacio de Miguel Díaz - [@imigueldiaz](https://github.com/imigueldiaz)
 
 ## Special Thanks
 

@@ -79,6 +79,8 @@
     "dist",
     "README.md",
     "LICENSE",
-    "CHANGELOG.md"
+    "CHANGELOG.md",
+    "assets",
+    "docs"
   ]
 }
