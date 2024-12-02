@@ -2,18 +2,9 @@
 import { AtUri } from "@atproto/syntax";
 import * as cidModule from 'multiformats/cid'
 import { isValid, parseISO, isAfter, isBefore, isEqual, getDaysInMonth } from 'date-fns';
+import  {AtProtocolValidationError} from '../errors';
 
 const CID = cidModule.CID;
-
-/**
- * Custom error for AT Protocol validation failures
- */
-export class AtProtocolValidationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "AtProtocolValidationError";
-  }
-}
 
 /**
  * Validates a DID according to AT Protocol specifications

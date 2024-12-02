@@ -11,7 +11,7 @@ vi.mock("@atproto/syntax", () => ({
 }));
 
 import { validateCid, validateDid, validateVal, validateCts, validateExp, validateUri, validateAtUri } from "../util/validators";
-import { AtProtocolValidationError } from "../util/validators";
+import { AtProtocolValidationError } from "../errors";
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 
 describe("DID Validation", () => {
