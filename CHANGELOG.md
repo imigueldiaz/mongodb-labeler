@@ -1,8 +1,36 @@
 # Changelog
 
+## [0.4.7] - 2024-12-02
+
+### Added
+
+- Added export for errors/index.js module for better error handling
+- Added Vitest support for testing, replacing Jest
+- Added MongoDB 6.0 support
+- Added basic usage examples in README for label creation and querying
+
+### Changed
+
+- Improved MongoDB date handling in label operations:
+  - Storing dates as ISO strings for better compatibility
+  - Enhanced filtering of expired labels using MongoDB queries
+- Updated LabelerServer with improved error handling
+- Migrated test framework from Jest to Vitest:
+  - Removed Jest configuration files
+  - Added Vitest configuration
+  - Updated test files for Vitest compatibility
+- Enhanced ESLint configuration to properly ignore coverage files
+
+### Fixed
+
+- Fixed expired label filtering in MongoDB queries
+- Fixed date comparison issues in label operations
+- Fixed test cases to properly handle expired labels
+
 ## [0.4.6] - 2024-12-01
 
 ### Changed
+
 - Enhanced version validation in label schema:
   - Modified `CreateLabelData` interface to allow any number in `ver` field for testing flexibility
   - Added runtime validation in `createLabel` to ensure `ver` is always 1
@@ -11,10 +39,12 @@
 ## [0.4.5] - 2024-12-01
 
 ### Added
+
 - New `validateUri` function that properly handles both `did:` and `at://` URIs
 - Warning when creating a label for an `at://` URI without a CID
 
 ### Changed
+
 - Improved URI and CID validation to follow atproto specification:
   - CID is not allowed for `did:` URIs
   - CID is recommended but optional for `at://` URIs
@@ -27,6 +57,7 @@
   - Enforced literal type `1` for `ver` field
 
 ### Fixed
+
 - Validation now correctly handles the relationship between URI types and CID
 - Test coverage improved for URI and CID validation scenarios
 

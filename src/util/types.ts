@@ -57,9 +57,10 @@ export interface CreateLabelData {
 
 export type SignedLabel = UnsignedLabel & { sig: Uint8Array };
 export type FormattedLabel = UnsignedLabel & { sig?: At.Bytes };
-export type SavedLabel = UnsignedLabel & { sig: ArrayBuffer; id: number };
-export type MongoSavedLabel = Omit<SavedLabel, "sig"> & {
-  id: number & ObjectId;
+// eslint-disable-next-line @typescript-eslint/naming-convention
+export type SavedLabel = UnsignedLabel & { sig: ArrayBuffer; _id: ObjectId };
+export type MongoSavedLabel = Omit<SavedLabel, "sig" | "_id"> & {
+  id: ObjectId;
   sig: Binary;
 };
 

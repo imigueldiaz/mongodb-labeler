@@ -1,4 +1,4 @@
-import { type Collection, MongoClient } from "mongodb";
+import { type Collection, MongoClient, ObjectId } from "mongodb";
 import { LabelerServer } from "../LabelerServer";
 import type { LabelerOptions } from "../LabelerServer.js";
 import type { SavedLabel, UnsignedLabel, CreateLabelData } from "../util/types.js";
@@ -252,7 +252,7 @@ describe("LabelerServer", () => {
 
     describe("Label Negation", () => {
       const mockLabel: SavedLabel = {
-        id: 1,
+        _id: new ObjectId(),
         ver: 1,
         val: "test-label",
         uri: "at://test.com",
@@ -268,7 +268,7 @@ describe("LabelerServer", () => {
           vi.spyOn(server.db, "findLabels").mockResolvedValue([mockLabel]);
           vi.spyOn(server.db, "updateLabel").mockResolvedValue(true);
 
-          const result = await server.reverseLabelNegation(1, true);
+          const result = await server.reverseLabelNegation(new ObjectId(), true);
           expect(result).not.toBeNull();
           expect(result?.neg).toBe(true);
         }, getErrorMessage('Failed to reverse label negation'));
@@ -278,7 +278,7 @@ describe("LabelerServer", () => {
         await safeAsyncOperation(async () => {
           vi.spyOn(server.db, "findLabels").mockResolvedValue([]);
 
-          const result = await server.reverseLabelNegation(999);
+          const result = await server.reverseLabelNegation(new ObjectId());
           expect(result).toBeNull();
         }, getErrorMessage('Failed to handle non-existent label in reverseLabelNegation'));
       });
@@ -287,7 +287,7 @@ describe("LabelerServer", () => {
         await safeAsyncOperation(async () => {
           vi.spyOn(server.db, "findLabels").mockRejectedValue(new Error("Failed to reverse label negation"));
 
-          await expect(server.reverseLabelNegation(1)).rejects.toThrow("Failed to reverse label negation");
+          await expect(server.reverseLabelNegation(new ObjectId())).rejects.toThrow("Failed to reverse label negation");
         }, getErrorMessage('Failed to handle database error in reverseLabelNegation'));
       });
     });
@@ -490,11 +490,8 @@ describe("LabelerServer", () => {
         // Test queryLabel
         await expect(server.queryLabels()).rejects.toThrow('Failed to query labels');
 
-        // Test queryLabels
-        await expect(server.queryLabels()).rejects.toThrow('Failed to query labels');
-
         // Test deleteLabel
-        await expect(server.deleteLabel(1)).rejects.toThrow('Failed to delete label');
+        await expect(server.deleteLabel(new ObjectId())).rejects.toThrow('Failed to delete label');
       }, getErrorMessage('Failed to handle database errors in label operations'));
     });
 
@@ -504,7 +501,7 @@ describe("LabelerServer", () => {
         await server.getInitializationPromise();
 
         // Test with non-existent label
-        const result = await server.reverseLabelNegation(999);
+        const result = await server.reverseLabelNegation(new ObjectId());
         expect(result).toBeNull();
 
         // Test with database error
@@ -518,7 +515,7 @@ describe("LabelerServer", () => {
           configurable: true
         });
 
-        await expect(server.reverseLabelNegation(1)).rejects.toThrow('Failed to reverse label negation');
+        await expect(server.reverseLabelNegation(new ObjectId())).rejects.toThrow('Failed to reverse label negation');
       }, getErrorMessage('Failed to handle errors in reverseLabelNegation'));
     });
 
@@ -566,7 +563,7 @@ describe("LabelerServer", () => {
 
         // Mock findOne to return a label and saveLabel to fail
         vi.spyOn(server.db, "findOne").mockResolvedValue({
-          id: 1,
+          _id: new ObjectId(),
           ver: 1,
           val: "test",
           uri: "at://test.com",
@@ -579,7 +576,7 @@ describe("LabelerServer", () => {
 
         vi.spyOn(server.db, "saveLabel").mockRejectedValue(new Error("Save failed"));
 
-        await expect(server.deleteLabel(1)).rejects.toThrow("Failed to save negated label to database");
+        await expect(server.deleteLabel(new ObjectId())).rejects.toThrow("Failed to save negated label to database");
       }, getErrorMessage('Failed to handle errors when saving negated label in deleteLabel'));
     });
 
@@ -590,7 +587,7 @@ describe("LabelerServer", () => {
 
         // Mock findOne to return a label and signer to fail
         vi.spyOn(server.db, "findOne").mockResolvedValue({
-          id: 1,
+          _id: new ObjectId(),
           ver: 1,
           val: "test",
           uri: "at://test.com",
@@ -608,7 +605,7 @@ describe("LabelerServer", () => {
           writable: true,
         });
 
-        await expect(server.deleteLabel(1)).rejects.toThrow("Failed to delete label");
+        await expect(server.deleteLabel(new ObjectId())).rejects.toThrow("Failed to delete label");
       }, getErrorMessage('Failed to handle errors when signing negated label in deleteLabel'));
     });
 

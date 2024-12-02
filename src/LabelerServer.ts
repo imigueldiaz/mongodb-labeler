@@ -3,7 +3,7 @@ import { MongoDBClient } from "./mongodb.js";
 import { CreateLabelData, SavedLabel, SignedLabel, UnsignedLabel } from "./util/types.js";
 import { validateCid, validateDid, validateVal, validateCts, validateExp, validateUri } from "./util/validators.js";
 import { LabelerServerError, AtProtocolValidationError } from "./errors";
-
+import { ObjectId } from "mongodb";
 
 /**
 * Options for initializing a LabelerServer instance.
@@ -53,11 +53,9 @@ export class LabelerServer {
     return this._did;
   }
   
-  private _nextId: number;
-  
   private _initializeSigner: Promise<void>;
   private _initializationError?: Error;
-  
+
   /**
   * Returns the promise that resolves when the signer is initialized.
   * @returns A promise that resolves when initialization is complete.
@@ -92,7 +90,6 @@ export class LabelerServer {
       this._db = new MongoDBClient(options.mongoUri);
       
       this._did = options.did;
-      this._nextId = 1;
       
       // Initialize the signer
       this._initializeSigner = Secp256k1Keypair.import(options.signingKey).then(keypair => {
@@ -125,7 +122,6 @@ export class LabelerServer {
       throw new LabelerServerError(`Failed to connect to database: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
-  
   
   /**
   * Close the connection to the MongoDB instance.
@@ -227,7 +223,8 @@ export class LabelerServer {
       const savedLabel: SavedLabel = {
         ...unsignedLabel,
         sig: sig.buffer,
-        id: this._nextId++,
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        _id: new ObjectId(),
       };
       
       await this.db.saveLabel(savedLabel);
@@ -293,24 +290,18 @@ export class LabelerServer {
   * @returns A promise that resolves to the signed label if found, or null if not found.
   * @throws {LabelerServerError} If the query operation fails
   */
-  async queryLabel(id: number): Promise<SignedLabel | null> {
+  async queryLabel(id: ObjectId): Promise<SignedLabel | null> {
     try {
       await this.getInitializationPromise();
-      const label = await this.db.findOne({ id });
+      // eslint-disable-next-line @typescript-eslint/naming-convention
+      const label = await this.db.findOne({ _id: id });
       
       if (!label) {
         return null;
       }
-      
+
       return {
-        ver: 1,
-        val: label.val,
-        uri: label.uri,
-        cid: label.cid,
-        neg: label.neg,
-        exp: label.exp,
-        cts: label.cts,
-        src: label.src,
+        ...label,
         sig: new Uint8Array(label.sig),
       };
     } catch (error) {
@@ -333,57 +324,46 @@ export class LabelerServer {
   * @returns A promise that resolves to the signed label with negation if successful, or null if not found.
   * @throws {LabelerServerError} If the deletion operation fails
   */
-  async deleteLabel(id: number): Promise<SignedLabel | null> {
+  async deleteLabel(id: ObjectId): Promise<SignedLabel | null> {
     try {
       await this.getInitializationPromise();
-      const label = await this.db.findOne({ id });
-      
+      // eslint-disable-next-line @typescript-eslint/naming-convention
+      const label = await this.db.findOne({ _id: id });
+
       if (!label) {
         return null;
       }
-      
-      // Validate the label value and timestamps before creating a new negated label
-      validateVal(label.val);
-      validateCts(label.cts);
-      if (label.exp) {
-        validateExp(label.exp);
-      }
-      
+
       const unsignedLabel: UnsignedLabel = {
-        ver: 1,
-        val: label.val,
-        uri: label.uri,
-        cid: label.cid,
-        neg: true, // Always set to true when deleting
-        exp: label.exp,
-        cts: new Date().toISOString(),
-        src: this._did,
+        ...label,
+        neg: true,
       };
-      
+
+      // Sign the label
       const sig = await this._signer.sign(Buffer.from(JSON.stringify(unsignedLabel)));
-      const negatedLabel: SignedLabel = { ...unsignedLabel, sig: new Uint8Array(sig) };
       const savedLabel: SavedLabel = {
         ...unsignedLabel,
         sig: sig.buffer,
-        id: this._getNextId(), // Remove await since it's no longer async
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        _id: new ObjectId(),
       };
       
       try {
-        await this.db.saveLabel(savedLabel); // Save as a new label instead of updating
+        await this.db.saveLabel(savedLabel);
       } catch (error) {
         throw new LabelerServerError(
-          "Failed to save negated label to database",
-          error instanceof Error ? error : new Error(String(error)),
+          `Failed to save negated label to database: ${error instanceof Error ? error.message : String(error)}`,
+          error instanceof Error ? error : new Error(String(error))
         );
       }
-      
-      return negatedLabel;
+
+      return {
+        ...unsignedLabel,
+        sig: new Uint8Array(sig),
+      };
     } catch (error) {
       if (error instanceof LabelerServerError) {
         throw error;
-      }
-      if (error instanceof AtProtocolValidationError) {
-        throw new LabelerServerError(`Label validation failed: ${error.message}`, error);
       }
       throw new LabelerServerError(
         "Failed to delete label",
@@ -406,46 +386,39 @@ export class LabelerServer {
   * @returns A promise that resolves to the signed label with the reversed negation if
   * the label exists, or null if not.
   */
-  async reverseLabelNegation(id: number, save = false): Promise<SignedLabel | null> {
+  async reverseLabelNegation(id: ObjectId, save = false): Promise<SignedLabel | null> {
     try {
-      const labels = await this.db.findLabels({ id });
+      // eslint-disable-next-line @typescript-eslint/naming-convention
+      const labels = await this.db.findLabels({ _id: id });
       if (!Array.isArray(labels) || labels.length === 0) {
         return null;
       }
+
       const label = labels[0];
-      
-      // Validate the label value and timestamps before creating a new one
-      validateVal(label.val);
-      validateCts(label.cts);
-      if (label.exp) {
-        validateExp(label.exp);
-      }
-      
       const unsignedLabel: UnsignedLabel = {
-        ver: 1,
-        val: label.val,
-        uri: label.uri,
-        cid: label.cid,
+        ...label,
         neg: !label.neg,
-        src: label.src,
-        cts: label.cts,
-        exp: label.exp,
       };
+
+      // Sign the label
       const sig = await this._signer.sign(Buffer.from(JSON.stringify(unsignedLabel)));
-      const signedLabel: SignedLabel = { ...unsignedLabel, sig: new Uint8Array(sig) };
+      const signedLabel: SignedLabel = {
+        ...unsignedLabel,
+        sig: new Uint8Array(sig),
+      };
+
       if (save) {
         const savedLabel: SavedLabel = {
           ...unsignedLabel,
           sig: sig.buffer,
-          id,
+          // eslint-disable-next-line @typescript-eslint/naming-convention
+          _id: new ObjectId(),
         };
         await this.db.updateLabel(id, savedLabel);
       }
+
       return signedLabel;
     } catch (error) {
-      if (error instanceof AtProtocolValidationError) {
-        throw new LabelerServerError(`Label validation failed: ${error.message}`, error);
-      }
       throw new LabelerServerError(
         "Failed to reverse label negation",
         error instanceof Error ? error : new Error(String(error)),
@@ -453,7 +426,39 @@ export class LabelerServer {
     }
   }
   
-  private _getNextId(): number {
-    return this._nextId++;
+  /**
+   * Retrieve a limited number of labels from the database that have an ID greater than the specified cursor.
+   *
+   * @param cursor - The ID after which labels should be retrieved.
+   * @param limit - The maximum number of labels to return.
+   * @returns A promise that resolves to an array of labels with IDs greater than the cursor.
+   * @throws {LabelerServerError} If the query operation fails
+   */
+  async getLabelsAfterCursor(cursor: ObjectId, limit: number): Promise<SignedLabel[]> {
+    try {
+      await this.getInitializationPromise();
+      
+      const labels = await this.db.findLabels(
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        { _id: { $gt: cursor } },
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        { limit, sort: { _id: 1 } }
+      );
+      
+      if (!Array.isArray(labels)) {
+        throw new Error("Invalid response from database");
+      }
+      
+      // Convert ArrayBuffer to Uint8Array for the signature
+      return labels.map(label => ({
+        ...label,
+        sig: new Uint8Array(label.sig)
+      }));
+    } catch (error) {
+      throw new LabelerServerError(
+        "Failed to retrieve labels after cursor",
+        error instanceof Error ? error : new Error(String(error)),
+      );
+    }
   }
 }

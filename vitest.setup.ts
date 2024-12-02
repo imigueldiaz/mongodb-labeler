@@ -1,4 +1,3 @@
-// Import the specific types we need from Node.js
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import { MongoClient } from 'mongodb';
 import { vi, beforeAll, afterAll, afterEach } from 'vitest';
@@ -6,80 +5,80 @@ import { vi, beforeAll, afterAll, afterEach } from 'vitest';
 // Define proper types for our global mocks
 declare global {
   var mockFindLabelsError: boolean;
-  var mockLabels: unknown[] | undefined;
+  var mockLabels: unknown;
   // eslint-disable-next-line @typescript-eslint/naming-convention
-  var __MONGOD__: MongoMemoryServer;
+  var __MONGOD__: MongoMemoryServer | undefined;
 }
 
-// Initialize global mocks
-globalThis.mockFindLabelsError = false;
-globalThis.mockLabels = undefined;
-
-// Mock XRPC Error
-vi.mock("@atproto/xrpc", () => ({
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  XRPCError: class XRPCError extends Error {
-    status: number;
-    constructor(status: number, message: string) {
-      super(message);
-      this.name = "XRPCError";
-      this.status = status;
-    }
-  },
-}));
-
-// Helper function to get MongoDB URI with type safety
-export function getMongodUri(): string {
-  
-  return globalThis.__MONGOD__.getUri();
-}
-
+// Inicialización de variables globales
 let mongoClient: MongoClient | null = null;
 
-// Start MongoDB Memory Server once for all tests
+// Initialize MongoDB Memory Server before all tests
 beforeAll(async () => {
+  // Initialize global mocks
+  globalThis.mockFindLabelsError = false;
+  globalThis.mockLabels = undefined;
+
+  // Mock XRPC Error
+  vi.mock("@atproto/xrpc", () => ({
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    XRPCError: class XRPCError extends Error {
+      status: number;
+      constructor(status: number, message: string) {
+        super(message);
+        this.name = "XRPCError";
+        this.status = status;
+      }
+    },
+  }));
+
   try {
     globalThis.__MONGOD__ = await MongoMemoryServer.create({
       instance: {
-        dbName: 'jest',
+        dbName: 'vitest',
         storageEngine: 'wiredTiger'
       }
     });
-    
-    // Inicializamos la conexión que usaremos en los tests
-    mongoClient = await MongoClient.connect(globalThis.__MONGOD__.getUri());
     console.log('MongoDB Memory Server started successfully');
+    mongoClient = await MongoClient.connect(globalThis.__MONGOD__.getUri());
   } catch (error) {
     console.error('Failed to start MongoDB Memory Server:', error);
     throw error;
   }
 });
 
+// Cleanup after all tests
 afterAll(async () => {
   try {
-    // Cerramos la conexión si existe
     if (mongoClient) {
       await mongoClient.close(true);
       mongoClient = null;
     }
     
-    // Esperamos un poco antes de detener el servidor
     await new Promise(resolve => setTimeout(resolve, 1000));
     
-    // Detenemos el servidor
-    
-    await globalThis.__MONGOD__.stop({ doCleanup: true });
-    console.log('MongoDB Memory Server stopped successfully');
-    
+    if (globalThis.__MONGOD__) {
+      await globalThis.__MONGOD__.stop({ doCleanup: true });
+      console.log('MongoDB Memory Server stopped successfully');
+    }
   } catch (error) {
     console.error('Failed to stop MongoDB Memory Server:', error);
     throw error;
   }
 });
 
-// Clean up after each test
+// Helper function to get MongoDB URI with type safety
+export function getMongodUri(): string {
+  const mongod = globalThis.__MONGOD__;
+  if (!mongod) {
+    throw new Error('MongoDB Memory Server is not initialized');
+  }
+  return mongod.getUri();
+}
+
+// Hooks para limpieza entre tests
 afterEach(() => {
-  // Reset mock state
   globalThis.mockFindLabelsError = false;
   globalThis.mockLabels = undefined;
+  vi.clearAllMocks();
 });

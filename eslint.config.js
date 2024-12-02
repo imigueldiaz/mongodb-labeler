@@ -9,6 +9,8 @@ export default [
       'node_modules/**',
       'jest.config.cjs',
       'coverage/**',
+      'src/coverage/**',
+      '**/coverage/**/*.js',
       'jest.setup.ts',
       'jest-mongodb-config.cjs'
     ]

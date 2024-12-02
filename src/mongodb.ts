@@ -1,11 +1,5 @@
-import { Collection, Db, Filter, FindOptions, MongoClient } from "mongodb";
+import { Collection, Db, Filter, FindOptions, MongoClient, ObjectId } from "mongodb";
 import type { SavedLabel, UnsignedLabel } from "./util/types.js";
-
-interface Counter {
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  _id: string;
-  sequenceValue: number;
-}
 
 /**
  * Client for interacting with the MongoDB database where labels are stored.
@@ -65,7 +59,6 @@ export class MongoDBClient {
         // Crear los índices necesarios
         await this._labels.createIndex({ uri: 1 });
         await this._labels.createIndex({ src: 1 });
-        await this._labels.createIndex({ id: 1 }, { unique: true });
       } else {
         // Si la colección ya existe, solo obtener la referencia
         this._labels = this._db.collection("labels");
@@ -96,10 +89,10 @@ export class MongoDBClient {
   }
 
   /**
-   * Save a label to the MongoDB collection with an automatically generated ID.
+   * Save a label to the MongoDB collection.
    *
    * @param label - The label to save, including a signature as an ArrayBuffer.
-   * @returns A promise that resolves to the saved label with an assigned ID.
+   * @returns A promise that resolves to the saved label.
    */
   async saveLabel(label: UnsignedLabel & { sig: ArrayBuffer }): Promise<SavedLabel> {
     if (!this._labels) {
@@ -107,8 +100,16 @@ export class MongoDBClient {
     }
 
     try {
-      const id = await this._getNextId();
-      const savedLabel: SavedLabel = { ...label, id };
+      const objectId = new ObjectId();
+      // Convert ISO string dates to Date objects for MongoDB
+      const labelWithDates = {
+        ...label,
+        cts: new Date(label.cts).toISOString(),
+        exp: label.exp ? new Date(label.exp).toISOString() : undefined
+      };
+      // eslint-disable-next-line @typescript-eslint/naming-convention
+      const savedLabel: SavedLabel = { ...labelWithDates, _id: objectId };
+      console.log('Saving label:', { val: savedLabel.val, exp: savedLabel.exp });
       const result = await this._labels.insertOne(savedLabel);
 
       if (!result.acknowledged) {
@@ -117,11 +118,6 @@ export class MongoDBClient {
 
       return savedLabel;
     } catch (error) {
-      // If the error is from _getNextId, propagate it as is since it's already properly formatted
-      if (error instanceof Error && error.message.startsWith('Failed to get next ID')) {
-        throw error;
-      }
-      // For other errors, wrap them with the saveLabel context
       const message = error instanceof Error ? error.message : String(error);
       throw new Error(`Failed to save label: ${message}`);
     }
@@ -143,19 +139,28 @@ export class MongoDBClient {
       const { allowExpired, ...restQuery } = query;
       let finalQuery = restQuery;
 
-      // Solo filtrar etiquetas expiradas si allowExpired es false
+      // Only filter expired labels if allowExpired is false
       if (!allowExpired) {
-        const now = new Date().toISOString();
+        const now = new Date();
+        console.log('Current time:', now.toISOString());
+        console.log('Query before expiration filter:', JSON.stringify(restQuery));
         finalQuery = {
-          ...restQuery,
-          $or: [
-            { exp: { $exists: false } },
-            { exp: { $gt: now } }
+          $and: [
+            restQuery,
+            {
+              $or: [
+                { exp: { $exists: false } },
+                { exp: { $gt: new Date(now.toISOString()).toISOString() } }
+              ]
+            }
           ]
         };
+        console.log('Final query:', JSON.stringify(finalQuery));
       }
 
-      return await this._labels.find(finalQuery, options).toArray();
+      const results = await this._labels.find(finalQuery, options).toArray();
+      console.log('Found labels:', results.map(l => ({ val: l.val, exp: l.exp })));
+      return results;
     } catch (error) {
       throw new Error(
         `Failed to find labels: ${error instanceof Error ? error.message : String(error)}`,
@@ -190,50 +195,14 @@ export class MongoDBClient {
    * @param limit - The maximum number of labels to return.
    * @returns A promise that resolves to an array of labels with IDs greater than the cursor.
    */
-  async getLabelsAfterCursor(cursor: number, limit: number): Promise<SavedLabel[]> {
+  async getLabelsAfterCursor(cursor: ObjectId, limit: number): Promise<SavedLabel[]> {
     try {
-      return this._labels?.find({ id: { $gt: cursor } }).sort({ id: 1 }).limit(limit).toArray() ?? [];
+      // eslint-disable-next-line @typescript-eslint/naming-convention
+      return this._labels?.find({ _id: { $gt: cursor } }).sort({ _id: 1 }).limit(limit).toArray() ?? [];
     } catch (error) {
       throw new Error(
         `Failed to get labels after cursor: ${error instanceof Error ? error.message : String(error)}`,
       );
-    }
-  }
-
-  /**
-   * Retrieve the next available ID for a label using atomic operations.
-   * 
-   * This method uses MongoDB's findOneAndUpdate with upsert to atomically increment
-   * a counter, ensuring unique IDs even under concurrent operations.
-   * 
-   * @returns A promise that resolves to the next available ID.
-   */
-  private async _getNextId(): Promise<number> {
-    if (!this._db) {
-      throw new Error("Failed to get next ID: Database is not initialized");
-    }
-
-    try {
-      const counters = this._db.collection<Counter>('counters');
-      const result = await counters.findOneAndUpdate(
-        // eslint-disable-next-line @typescript-eslint/naming-convention
-        { _id: 'labelId' },
-        { $inc: { sequenceValue: 1 } },
-        { 
-          upsert: true,
-          returnDocument: 'after'
-        }
-      );
-
-      if (!result) {
-        throw new Error("No result returned from findOneAndUpdate");
-      }
-
-      return result.sequenceValue;
-    } catch (error) {
-      // Wrap all errors with the "Failed to get next ID" prefix
-      const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`Failed to get next ID: ${message}`);
     }
   }
 
@@ -244,14 +213,15 @@ export class MongoDBClient {
    * @param label - The new label data.
    * @returns A promise that resolves to true if the update was successful, false if the label wasn't found.
    */
-  async updateLabel(id: number, label: UnsignedLabel & { sig: ArrayBuffer }): Promise<boolean> {
+  async updateLabel(id: ObjectId, label: UnsignedLabel & { sig: ArrayBuffer }): Promise<boolean> {
     if (!this._labels) {
       throw new Error("Collection is not initialized");
     }
 
     try {
       const result = await this._labels.updateOne(
-        { id },
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        { _id: id },
         { $set: label },
       );
       return result.modifiedCount > 0;

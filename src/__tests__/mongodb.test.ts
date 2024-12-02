@@ -3,6 +3,7 @@ import type { UnsignedLabel } from "../util/types.js";
 import { getMongodUri } from "../../vitest.setup";
 import { getErrorMessage } from "../util/errorUtils";
 import { describe, it, expect, beforeAll, afterAll, afterEach, beforeEach, vi } from 'vitest';
+import { ObjectId } from "mongodb";
 
 const TEST_TIMEOUT = 35000;
 
@@ -59,7 +60,7 @@ describe("MongoDBClient", () => {
         sig: new ArrayBuffer(0),
       };
       
-      await expect(client.updateLabel(1, testLabel)).rejects.toThrow("Failed to update label");
+      await expect(client.updateLabel(new ObjectId(), testLabel)).rejects.toThrow("Failed to update label");
     });
     
     it("should handle errors in getLabelsAfterCursor", async () => {
@@ -78,7 +79,7 @@ describe("MongoDBClient", () => {
         writable: true,
       });
       
-      await expect(client.getLabelsAfterCursor(0, 10)).rejects.toThrow("Failed to get labels after cursor");
+      await expect(client.getLabelsAfterCursor(new ObjectId(), 10)).rejects.toThrow("Failed to get labels after cursor");
     });
     
     it("should handle uninitialized collection in operations", async () => {
@@ -86,20 +87,10 @@ describe("MongoDBClient", () => {
       
       await expect(client.findLabels({})).resolves.toEqual([]);
       await expect(client.findOne({})).resolves.toBeNull();
-      await expect(client.getLabelsAfterCursor(0, 10)).resolves.toEqual([]);
+      await expect(client.getLabelsAfterCursor(new ObjectId(), 10)).resolves.toEqual([]);
     });
     
-    it("should handle first label creation with _getNextId", async () => {
-      const mockCollection = {
-        findOne: vi.fn().mockResolvedValue(null),
-        insertOne: vi.fn().mockResolvedValue({ acknowledged: true }),
-      };
-      
-      Object.defineProperty(client, "_labels", {
-        value: mockCollection,
-        writable: true,
-      });
-      
+    it("should handle first label creation", async () => {
       const testLabel: UnsignedLabel & { sig: ArrayBuffer } = {
         val: "test",
         uri: "test://uri",
@@ -110,8 +101,10 @@ describe("MongoDBClient", () => {
         ver: 1 as const,
         sig: new ArrayBuffer(0),
       };
-      
-      await expect(client.saveLabel(testLabel)).resolves.toHaveProperty("id", 1);
+
+      const savedLabel = await client.saveLabel(testLabel);
+      expect(savedLabel).toHaveProperty("_id");
+      expect(savedLabel._id).toBeInstanceOf(ObjectId);
     });
     
     it("should handle errors in listCollections during connect", async () => {
@@ -169,60 +162,16 @@ describe("MongoDBClient", () => {
       await expect(client.connect()).rejects.toThrow('Failed to connect to MongoDB');
     }, TEST_TIMEOUT);
     
-    it('should handle errors in _getNextId', async () => {
+    it('should handle errors in saveLabel', async () => {
       const mockCollection = {
-        findOneAndUpdate: vi.fn().mockRejectedValue(new Error("Database error")),
+        insertOne: vi.fn().mockRejectedValue(new Error("Insert failed")),
       };
-      
-      const mockDb = {
-        collection: vi.fn().mockReturnValue(mockCollection),
-      };
-      
-      Object.defineProperty(client, '_db', {
-        value: mockDb,
+
+      Object.defineProperty(client, "_labels", {
+        value: mockCollection,
         writable: true,
       });
 
-      Object.defineProperty(client, "_labels", {
-        value: {
-          insertOne: vi.fn().mockResolvedValue({ acknowledged: true }),
-        },
-        writable: true,
-      });
-      
-      const testLabel: UnsignedLabel & { sig: ArrayBuffer } = {
-        val: 'test',
-        uri: 'test://uri',
-        cid: 'bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi',
-        cts: new Date().toISOString(),
-        src: 'did:web:test.com' as `did:${string}`,
-        neg: false,
-        ver: 1 as const,
-        sig: new ArrayBuffer(0),
-      };
-      
-      await expect(client.saveLabel(testLabel)).rejects.toThrow('Failed to get next ID: Database error');
-    });
-    
-    it("should handle errors in getting next ID during saveLabel", async () => {
-      const mockDb = {
-        collection: vi.fn().mockReturnValue({
-          findOneAndUpdate: vi.fn().mockRejectedValue(new Error("Find operation failed")),
-        }),
-      };
-      
-      Object.defineProperty(client, '_db', {
-        value: mockDb,
-        writable: true,
-      });
-
-      Object.defineProperty(client, "_labels", {
-        value: {
-          insertOne: vi.fn().mockResolvedValue({ acknowledged: true }),
-        },
-        writable: true,
-      });
-      
       const testLabel: UnsignedLabel & { sig: ArrayBuffer } = {
         val: "test",
         uri: "test://uri",
@@ -233,8 +182,8 @@ describe("MongoDBClient", () => {
         ver: 1 as const,
         sig: new ArrayBuffer(0),
       };
-      
-      await expect(client.saveLabel(testLabel)).rejects.toThrow("Failed to get next ID: Find operation failed");
+
+      await expect(client.saveLabel(testLabel)).rejects.toThrow("Failed to save label: Insert failed");
     });
     
     it('should properly filter expired labels', async () => {
@@ -327,63 +276,8 @@ describe("MongoDBClient", () => {
       await expect(client.findLabels({ src: "did:web:test.com" as `did:${string}` })).rejects.toThrow("Failed to find labels");
     });
     
-    it("should handle errors in saveLabel collection operation", async () => {
-      const mockCollection = {
-        findOne: vi.fn().mockResolvedValue({ id: 1 }),
-        insertOne: vi.fn().mockRejectedValue(new Error("Insert failed")),
-      };
-      
-      Object.defineProperty(client, "_labels", {
-        value: mockCollection,
-        writable: true,
-      });
-      
-      const testLabel: UnsignedLabel & { sig: ArrayBuffer } = {
-        val: "test",
-        uri: "test://uri",
-        cid: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
-        cts: new Date().toISOString(),
-        src: "did:web:test.com" as `did:${string}`,
-        neg: false,
-        ver: 1 as const,
-        sig: new ArrayBuffer(0),
-      };
-      
-      await expect(client.saveLabel(testLabel)).rejects.toThrow("Failed to save label");
-    });
-    
-    it("should handle errors in getting next ID during saveLabel", async () => {
-      const mockDb = {
-        collection: vi.fn().mockReturnValue({
-          findOneAndUpdate: vi.fn().mockRejectedValue(new Error("Find operation failed")),
-        }),
-      };
-      
-      Object.defineProperty(client, '_db', {
-        value: mockDb,
-        writable: true,
-      });
-
-      Object.defineProperty(client, "_labels", {
-        value: {
-          insertOne: vi.fn().mockResolvedValue({ acknowledged: true }),
-        },
-        writable: true,
-      });
-      
-      const testLabel: UnsignedLabel & { sig: ArrayBuffer } = {
-        val: "test",
-        uri: "test://uri",
-        cid: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
-        cts: new Date().toISOString(),
-        src: "did:web:test.com" as `did:${string}`,
-        neg: false,
-        ver: 1 as const,
-        sig: new ArrayBuffer(0),
-      };
-      
-      await expect(client.saveLabel(testLabel)).rejects.toThrow("Failed to get next ID: Find operation failed");
-    });
+    it.skip("should handle errors in _getNextId", async () => {});
+    it.skip("should handle errors in getting next ID during saveLabel", async () => {});
   });
   
   describe('Label Operations', () => {
@@ -412,7 +306,7 @@ describe("MongoDBClient", () => {
       };
       
       const savedLabel = await client.saveLabel(label);
-      expect(savedLabel.id).toBeDefined();
+      expect(savedLabel._id).toBeDefined();
       expect(savedLabel.src).toBe(label.src);
       
       // Test error handling
@@ -453,14 +347,14 @@ describe("MongoDBClient", () => {
       await Promise.all(labels.map(l => client.saveLabel(l)));
       
       // Test different queries
-      const allLabels = await client.findLabels({});
+      const allLabels = await client.findLabels({ allowExpired: true });
       expect(allLabels.length).toBeGreaterThanOrEqual(2);
       
-      const negatedLabels = await client.findLabels({ neg: true });
+      const negatedLabels = await client.findLabels({ neg: true, allowExpired: true });
       expect(negatedLabels.length).toBeGreaterThanOrEqual(1);
       
       // Test with options
-      const limitedLabels = await client.findLabels({}, { limit: 1 });
+      const limitedLabels = await client.findLabels({ allowExpired: true }, { limit: 1 });
       expect(limitedLabels.length).toBe(1);
       
       await client.close();
@@ -485,7 +379,7 @@ describe("MongoDBClient", () => {
       };
       
       const savedLabel = await client.saveLabel(label);
-      const foundLabel = await client.findOne({ id: savedLabel.id });
+      const foundLabel = await client.findOne({ _id: savedLabel._id });
       expect(foundLabel).toBeDefined();
       expect(foundLabel?.src).toBe(label.src);
       
