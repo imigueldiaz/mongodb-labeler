@@ -55,7 +55,7 @@ export class LabelerServer {
   
   private _initializeSigner: Promise<void>;
   private _initializationError?: Error;
-
+  
   /**
   * Returns the promise that resolves when the signer is initialized.
   * @returns A promise that resolves when initialization is complete.
@@ -148,6 +148,22 @@ export class LabelerServer {
   }
   
   /**
+  * Signs a label using the server's signing key.
+  */
+  private async _signLabel(unsignedLabel: UnsignedLabel): Promise<SignedLabel> {
+    try {
+      await this.getInitializationPromise();
+      const sig = await this._signer.sign(Buffer.from(JSON.stringify(unsignedLabel)));
+      return { ...unsignedLabel, sig: new Uint8Array(sig) };
+    } catch (error) {
+      throw new LabelerServerError(
+        "Failed to sign label",
+        error instanceof Error ? error : new Error(String(error))
+      );
+    }
+  }
+  
+  /**
   * Creates a new signed label using the provided data.
   *
   * This function constructs an unsigned label with the current timestamp and
@@ -218,11 +234,10 @@ export class LabelerServer {
       };
       
       // Sign the label
-      const sig = await this._signer.sign(Buffer.from(JSON.stringify(unsignedLabel)));
-      const signedLabel: SignedLabel = { ...unsignedLabel, sig: new Uint8Array(sig) };
+      const signedLabel = await this._signLabel(unsignedLabel);
       const savedLabel: SavedLabel = {
         ...unsignedLabel,
-        sig: sig.buffer,
+        sig: signedLabel.sig,
         // eslint-disable-next-line @typescript-eslint/naming-convention
         _id: new ObjectId(),
       };
@@ -299,7 +314,7 @@ export class LabelerServer {
       if (!label) {
         return null;
       }
-
+      
       return {
         ...label,
         sig: new Uint8Array(label.sig),
@@ -329,21 +344,30 @@ export class LabelerServer {
       await this.getInitializationPromise();
       // eslint-disable-next-line @typescript-eslint/naming-convention
       const label = await this.db.findOne({ _id: id });
-
+      
       if (!label) {
         return null;
       }
-
+      
       const unsignedLabel: UnsignedLabel = {
         ...label,
         neg: true,
       };
+      
+      let signedLabel: SignedLabel;
+      try {
+        // Sign the label
+        signedLabel = await this._signLabel(unsignedLabel);
+      } catch (error) {
+        throw new LabelerServerError(
+          "Failed to delete label",
+          error instanceof Error ? error : new Error(String(error))
+        );
+      }
 
-      // Sign the label
-      const sig = await this._signer.sign(Buffer.from(JSON.stringify(unsignedLabel)));
       const savedLabel: SavedLabel = {
         ...unsignedLabel,
-        sig: sig.buffer,
+        sig: signedLabel.sig,
         // eslint-disable-next-line @typescript-eslint/naming-convention
         _id: new ObjectId(),
       };
@@ -356,11 +380,8 @@ export class LabelerServer {
           error instanceof Error ? error : new Error(String(error))
         );
       }
-
-      return {
-        ...unsignedLabel,
-        sig: new Uint8Array(sig),
-      };
+      
+      return signedLabel;
     } catch (error) {
       if (error instanceof LabelerServerError) {
         throw error;
@@ -393,30 +414,25 @@ export class LabelerServer {
       if (!Array.isArray(labels) || labels.length === 0) {
         return null;
       }
-
+      
       const label = labels[0];
       const unsignedLabel: UnsignedLabel = {
         ...label,
         neg: !label.neg,
       };
-
+      
       // Sign the label
-      const sig = await this._signer.sign(Buffer.from(JSON.stringify(unsignedLabel)));
-      const signedLabel: SignedLabel = {
-        ...unsignedLabel,
-        sig: new Uint8Array(sig),
-      };
-
+      const signedLabel = await this._signLabel(unsignedLabel);
       if (save) {
         const savedLabel: SavedLabel = {
           ...unsignedLabel,
-          sig: sig.buffer,
+          sig: signedLabel.sig,
           // eslint-disable-next-line @typescript-eslint/naming-convention
           _id: new ObjectId(),
         };
         await this.db.updateLabel(id, savedLabel);
       }
-
+      
       return signedLabel;
     } catch (error) {
       throw new LabelerServerError(
@@ -427,13 +443,13 @@ export class LabelerServer {
   }
   
   /**
-   * Retrieve a limited number of labels from the database that have an ID greater than the specified cursor.
-   *
-   * @param cursor - The ID after which labels should be retrieved.
-   * @param limit - The maximum number of labels to return.
-   * @returns A promise that resolves to an array of labels with IDs greater than the cursor.
-   * @throws {LabelerServerError} If the query operation fails
-   */
+  * Retrieve a limited number of labels from the database that have an ID greater than the specified cursor.
+  *
+  * @param cursor - The ID after which labels should be retrieved.
+  * @param limit - The maximum number of labels to return.
+  * @returns A promise that resolves to an array of labels with IDs greater than the cursor.
+  * @throws {LabelerServerError} If the query operation fails
+  */
   async getLabelsAfterCursor(cursor: ObjectId, limit: number): Promise<SignedLabel[]> {
     try {
       await this.getInitializationPromise();
