@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.8] - 2024-12-06
+
+### Changed
+- Modified `CreateLabelData` type to properly handle version validation at runtime
+- Improved version validation in `createLabel` method to better handle invalid versions
+- Updated type definitions to maintain type safety while allowing proper runtime checks
+
+### Fixed
+- Fixed ESLint warnings related to unnecessary conditions in version validation
+- Fixed handling of optional `cts` property in `mongodb.ts`
+- Improved error handling in `saveLabel` method
+
 ## [0.4.7] - 2024-12-02
 
 ### Added

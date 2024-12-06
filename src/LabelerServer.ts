@@ -179,11 +179,11 @@ export class LabelerServer {
     try {
       await this.getInitializationPromise();
       
-      // Validate label version
+      // Validate version
       if (data.ver !== 1) {
         throw new AtProtocolValidationError("Label validation failed: Label version must be 1");
       }
-      
+
       // Validate label value
       validateVal(data.val);
       

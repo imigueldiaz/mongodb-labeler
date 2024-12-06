@@ -104,7 +104,8 @@ export class MongoDBClient {
       // Convert ISO string dates to Date objects for MongoDB
       const labelWithDates = {
         ...label,
-        cts: new Date(label.cts).toISOString(),
+        // cts siempre tendrá un valor porque se genera en createLabel si no está presente
+        cts: new Date(String(label.cts)).toISOString(),
         exp: label.exp ? new Date(label.exp).toISOString() : undefined
       };
       // eslint-disable-next-line @typescript-eslint/naming-convention

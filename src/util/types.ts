@@ -1,4 +1,4 @@
-import { At, ComAtprotoLabelDefs } from "@atcute/client/lib/lexicons";
+import { At } from "@atcute/client/lib/lexicons";
 import type { WebsocketHandler } from "@fastify/websocket";
 import type {
   RawReplyDefaultExpression,
@@ -21,14 +21,9 @@ export type NonNullishPartial<T> =
 /**
  * Data required to create a label.
  */
-export type UnsignedLabel = Omit<ComAtprotoLabelDefs.Label, "sig"> & { ver: 1 };
-
-/**
- * Data required to create a label.
- */
-export interface CreateLabelData {
+export interface UnsignedLabel {
   /** The label schema version. Current version is always 1. */
-  ver: number;
+  ver: 1;
   /** The label value. */
   val: string;
   /** 
@@ -53,8 +48,16 @@ export interface CreateLabelData {
   cts?: string;
   /** The expiration date of the label, if any. Must be in ISO 8601 format. */
   exp?: string;
-}
+};
 
+/**
+ * Data required to create a label.
+ */
+export type CreateLabelData = Omit<UnsignedLabel, 'ver'> & { ver?: number };
+
+/**
+ * Data required to create a label.
+ */
 export type SignedLabel = UnsignedLabel & { sig: Uint8Array };
 export type FormattedLabel = UnsignedLabel & { sig?: At.Bytes };
 // eslint-disable-next-line @typescript-eslint/naming-convention
